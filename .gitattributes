@@ -1,2 +1,23 @@
-# Auto detect text files and perform LF normalization
+# Force LF line endings for common text/code files
+*.sh     text eol=lf
+*.conf   text eol=lf
+*.env    text eol=lf
+*.py     text eol=lf
+*.js     text eol=lf
+*.json   text eol=lf
+*.md     text eol=lf
+*.yml    text eol=lf
+*.html   text eol=lf
+
+# Auto-detect and normalize all other text files
 * text=auto
+
+# Mark binary files as binary (no end-of-line normalization)
+*.png  binary
+*.jpg  binary
+*.gif  binary
+*.exe  binary
+*.zip  binary
+
+# Ignore node_modules when packaging (optional for GitHub exports)
+node
