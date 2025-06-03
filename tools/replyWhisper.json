@@ -1,0 +1,18 @@
+{
+  "name": "replyWhisper",
+  "description": "Generate a short in-character reply for ZaraSprite to a private message.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "user": {
+        "type": "string",
+        "description": "Player’s username"
+      },
+      "text": {
+        "type": "string",
+        "description": "Content of the private message"
+      }
+    },
+    "required": ["user", "text"]
+  }
+}

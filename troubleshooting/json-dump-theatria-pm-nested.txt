@@ -1,0 +1,966 @@
+ChatMessage {
+  json: {
+    extra: [
+      {
+        extra: [
+          {
+            color: 'dark_gray',
+            extra: [
+              { '': '[' },
+              {
+                color: 'light_purple',
+                extra: [
+                  { '': 'PM' },
+                  {
+                    color: 'dark_gray',
+                    extra: [
+                      { '': '] [' },
+                      {
+                        color: 'gold',
+                        extra: [
+                          { '': 'Zarathale ' },
+                          {
+                            color: 'dark_gray',
+                            extra: [
+                              { '': '-> ' },
+                              {
+                                color: 'light_purple',
+                                extra: [
+                                  { '': 'ZaraSprite' },
+                                  {
+                                    color: 'dark_gray',
+                                    extra: [
+                                      { '': '] ' },
+                                      {
+                                        color: 'light_purple',
+                                        extra: [ 'test pm from next door' ],
+                                        text: ''
+                                      }
+                                    ],
+                                    text: ''
+                                  }
+                                ],
+                                text: ''
+                              }
+                            ],
+                            text: ''
+                          }
+                        ],
+                        text: ''
+                      }
+                    ],
+                    text: ''
+                  }
+                ],
+                text: ''
+              }
+            ],
+            text: ''
+          }
+        ],
+        clickEvent: { action: 'suggest_command', value: '/pm Zarathale' },
+        hoverEvent: {
+          action: 'show_text',
+          contents: {
+            extra: [
+              {
+                extra: [
+                  {
+                    color: 'gray',
+                    extra: [
+                      {
+                        color: 'white',
+                        extra: [ 'Private Message' ],
+                        text: ''
+                      }
+                    ],
+                    text: ''
+                  }
+                ],
+                text: ''
+              },
+              { '': '\n' },
+              {
+                extra: [
+                  {
+                    color: 'dark_aqua',
+                    extra: [
+                      { '': 'Received: ' },
+                      {
+                        color: 'white',
+                        extra: [ '02.06.2025 21:04:01' ],
+                        text: ''
+                      }
+                    ],
+                    text: ''
+                  }
+                ],
+                text: ''
+              },
+              { '': '\n' },
+              {
+                extra: [
+                  {
+                    color: 'dark_aqua',
+                    extra: [
+                      { '': 'Sender: ' },
+                      {
+                        color: 'white',
+                        extra: [ 'Zarathale' ],
+                        text: ''
+                      }
+                    ],
+                    text: ''
+                  }
+                ],
+                text: ''
+              },
+              { '': '\n' },
+              { '': '\n' },
+              {
+                extra: [
+                  {
+                    color: 'gray',
+                    extra: [ 'Click to reply.' ],
+                    text: ''
+                  }
+                ],
+                text: ''
+              }
+            ],
+            text: ''
+          }
+        },
+        text: ''
+      },
+      {
+        color: 'light_purple',
+        hoverEvent: {
+          action: 'show_text',
+          contents: 'flpm_443a9d86-3945-4459-b904-6a2ce2aa0157 flps_715cf7cc-d892-4dd6-b673-77f27d38cdc6'
+        },
+        text: ''
+      }
+    ],
+    text: ''
+  },
+  warn: [Function: debug] {
+    namespace: 'minecraft-protocol',
+    useColors: true,
+    color: 3,
+    extend: [Function: extend],
+    destroy: [Function: deprecated],
+    enabled: [Getter/Setter],
+    inspectOpts: {}
+  },
+  text: '',
+  extra: [
+    ChatMessage {
+      json: {
+        extra: [
+          {
+            color: 'dark_gray',
+            extra: [
+              { '': '[' },
+              {
+                color: 'light_purple',
+                extra: [
+                  { '': 'PM' },
+                  {
+                    color: 'dark_gray',
+                    extra: [
+                      { '': '] [' },
+                      {
+                        color: 'gold',
+                        extra: [
+                          { '': 'Zarathale ' },
+                          {
+                            color: 'dark_gray',
+                            extra: [
+                              { '': '-> ' },
+                              {
+                                color: 'light_purple',
+                                extra: [
+                                  { '': 'ZaraSprite' },
+                                  {
+                                    color: 'dark_gray',
+                                    extra: [
+                                      { '': '] ' },
+                                      {
+                                        color: 'light_purple',
+                                        extra: [ 'test pm from next door' ],
+                                        text: ''
+                                      }
+                                    ],
+                                    text: ''
+                                  }
+                                ],
+                                text: ''
+                              }
+                            ],
+                            text: ''
+                          }
+                        ],
+                        text: ''
+                      }
+                    ],
+                    text: ''
+                  }
+                ],
+                text: ''
+              }
+            ],
+            text: ''
+          }
+        ],
+        clickEvent: { action: 'suggest_command', value: '/pm Zarathale' },
+        hoverEvent: {
+          action: 'show_text',
+          contents: {
+            extra: [
+              {
+                extra: [
+                  {
+                    color: 'gray',
+                    extra: [
+                      {
+                        color: 'white',
+                        extra: [ 'Private Message' ],
+                        text: ''
+                      }
+                    ],
+                    text: ''
+                  }
+                ],
+                text: ''
+              },
+              { '': '\n' },
+              {
+                extra: [
+                  {
+                    color: 'dark_aqua',
+                    extra: [
+                      { '': 'Received: ' },
+                      {
+                        color: 'white',
+                        extra: [ '02.06.2025 21:04:01' ],
+                        text: ''
+                      }
+                    ],
+                    text: ''
+                  }
+                ],
+                text: ''
+              },
+              { '': '\n' },
+              {
+                extra: [
+                  {
+                    color: 'dark_aqua',
+                    extra: [
+                      { '': 'Sender: ' },
+                      {
+                        color: 'white',
+                        extra: [ 'Zarathale' ],
+                        text: ''
+                      }
+                    ],
+                    text: ''
+                  }
+                ],
+                text: ''
+              },
+              { '': '\n' },
+              { '': '\n' },
+              {
+                extra: [
+                  {
+                    color: 'gray',
+                    extra: [ 'Click to reply.' ],
+                    text: ''
+                  }
+                ],
+                text: ''
+              }
+            ],
+            text: ''
+          }
+        },
+        text: ''
+      },
+      warn: [Function: debug] {
+        namespace: 'minecraft-protocol',
+        useColors: true,
+        color: 3,
+        extend: [Function: extend],
+        destroy: [Function: deprecated],
+        enabled: [Getter/Setter],
+        inspectOpts: {}
+      },
+      text: '',
+      extra: [
+        ChatMessage {
+          json: {
+            color: 'dark_gray',
+            extra: [
+              { '': '[' },
+              {
+                color: 'light_purple',
+                extra: [
+                  { '': 'PM' },
+                  {
+                    color: 'dark_gray',
+                    extra: [
+                      { '': '] [' },
+                      {
+                        color: 'gold',
+                        extra: [
+                          { '': 'Zarathale ' },
+                          {
+                            color: 'dark_gray',
+                            extra: [
+                              { '': '-> ' },
+                              {
+                                color: 'light_purple',
+                                extra: [
+                                  { '': 'ZaraSprite' },
+                                  {
+                                    color: 'dark_gray',
+                                    extra: [
+                                      { '': '] ' },
+                                      {
+                                        color: 'light_purple',
+                                        extra: [ 'test pm from next door' ],
+                                        text: ''
+                                      }
+                                    ],
+                                    text: ''
+                                  }
+                                ],
+                                text: ''
+                              }
+                            ],
+                            text: ''
+                          }
+                        ],
+                        text: ''
+                      }
+                    ],
+                    text: ''
+                  }
+                ],
+                text: ''
+              }
+            ],
+            text: ''
+          },
+          warn: [Function: debug] {
+            namespace: 'minecraft-protocol',
+            useColors: true,
+            color: 3,
+            extend: [Function: extend],
+            destroy: [Function: deprecated],
+            enabled: [Getter/Setter],
+            inspectOpts: {}
+          },
+          text: '',
+          extra: [
+            ChatMessage {
+              json: { '': '[' },
+              warn: [Function: debug] {
+                namespace: 'minecraft-protocol',
+                useColors: true,
+                color: 3,
+                extend: [Function: extend],
+                destroy: [Function: deprecated],
+                enabled: [Getter/Setter],
+                inspectOpts: {}
+              },
+              bold: undefined,
+              italic: undefined,
+              underlined: undefined,
+              strikethrough: undefined,
+              obfuscated: undefined,
+              color: undefined
+            },
+            ChatMessage {
+              json: {
+                color: 'light_purple',
+                extra: [
+                  { '': 'PM' },
+                  {
+                    color: 'dark_gray',
+                    extra: [
+                      { '': '] [' },
+                      {
+                        color: 'gold',
+                        extra: [
+                          { '': 'Zarathale ' },
+                          {
+                            color: 'dark_gray',
+                            extra: [
+                              { '': '-> ' },
+                              {
+                                color: 'light_purple',
+                                extra: [
+                                  { '': 'ZaraSprite' },
+                                  {
+                                    color: 'dark_gray',
+                                    extra: [
+                                      { '': '] ' },
+                                      {
+                                        color: 'light_purple',
+                                        extra: [ 'test pm from next door' ],
+                                        text: ''
+                                      }
+                                    ],
+                                    text: ''
+                                  }
+                                ],
+                                text: ''
+                              }
+                            ],
+                            text: ''
+                          }
+                        ],
+                        text: ''
+                      }
+                    ],
+                    text: ''
+                  }
+                ],
+                text: ''
+              },
+              warn: [Function: debug] {
+                namespace: 'minecraft-protocol',
+                useColors: true,
+                color: 3,
+                extend: [Function: extend],
+                destroy: [Function: deprecated],
+                enabled: [Getter/Setter],
+                inspectOpts: {}
+              },
+              text: '',
+              extra: [
+                ChatMessage {
+                  json: { '': 'PM' },
+                  warn: [Function: debug] {
+                    namespace: 'minecraft-protocol',
+                    useColors: true,
+                    color: 3,
+                    extend: [Function: extend],
+                    destroy: [Function: deprecated],
+                    enabled: [Getter/Setter],
+                    inspectOpts: {}
+                  },
+                  bold: undefined,
+                  italic: undefined,
+                  underlined: undefined,
+                  strikethrough: undefined,
+                  obfuscated: undefined,
+                  color: undefined
+                },
+                ChatMessage {
+                  json: {
+                    color: 'dark_gray',
+                    extra: [
+                      { '': '] [' },
+                      {
+                        color: 'gold',
+                        extra: [
+                          { '': 'Zarathale ' },
+                          {
+                            color: 'dark_gray',
+                            extra: [
+                              { '': '-> ' },
+                              {
+                                color: 'light_purple',
+                                extra: [
+                                  { '': 'ZaraSprite' },
+                                  {
+                                    color: 'dark_gray',
+                                    extra: [
+                                      { '': '] ' },
+                                      {
+                                        color: 'light_purple',
+                                        extra: [ 'test pm from next door' ],
+                                        text: ''
+                                      }
+                                    ],
+                                    text: ''
+                                  }
+                                ],
+                                text: ''
+                              }
+                            ],
+                            text: ''
+                          }
+                        ],
+                        text: ''
+                      }
+                    ],
+                    text: ''
+                  },
+                  warn: [Function: debug] {
+                    namespace: 'minecraft-protocol',
+                    useColors: true,
+                    color: 3,
+                    extend: [Function: extend],
+                    destroy: [Function: deprecated],
+                    enabled: [Getter/Setter],
+                    inspectOpts: {}
+                  },
+                  text: '',
+                  extra: [
+                    ChatMessage {
+                      json: { '': '] [' },
+                      warn: [Function: debug] {
+                        namespace: 'minecraft-protocol',
+                        useColors: true,
+                        color: 3,
+                        extend: [Function: extend],
+                        destroy: [Function: deprecated],
+                        enabled: [Getter/Setter],
+                        inspectOpts: {}
+                      },
+                      bold: undefined,
+                      italic: undefined,
+                      underlined: undefined,
+                      strikethrough: undefined,
+                      obfuscated: undefined,
+                      color: undefined
+                    },
+                    ChatMessage {
+                      json: {
+                        color: 'gold',
+                        extra: [
+                          { '': 'Zarathale ' },
+                          {
+                            color: 'dark_gray',
+                            extra: [
+                              { '': '-> ' },
+                              {
+                                color: 'light_purple',
+                                extra: [
+                                  { '': 'ZaraSprite' },
+                                  {
+                                    color: 'dark_gray',
+                                    extra: [
+                                      { '': '] ' },
+                                      {
+                                        color: 'light_purple',
+                                        extra: [ 'test pm from next door' ],
+                                        text: ''
+                                      }
+                                    ],
+                                    text: ''
+                                  }
+                                ],
+                                text: ''
+                              }
+                            ],
+                            text: ''
+                          }
+                        ],
+                        text: ''
+                      },
+                      warn: [Function: debug] {
+                        namespace: 'minecraft-protocol',
+                        useColors: true,
+                        color: 3,
+                        extend: [Function: extend],
+                        destroy: [Function: deprecated],
+                        enabled: [Getter/Setter],
+                        inspectOpts: {}
+                      },
+                      text: '',
+                      extra: [
+                        ChatMessage {
+                          json: { '': 'Zarathale ' },
+                          warn: [Function: debug] {
+                            namespace: 'minecraft-protocol',
+                            useColors: true,
+                            color: 3,
+                            extend: [Function: extend],
+                            destroy: [Function: deprecated],
+                            enabled: [Getter/Setter],
+                            inspectOpts: {}
+                          },
+                          bold: undefined,
+                          italic: undefined,
+                          underlined: undefined,
+                          strikethrough: undefined,
+                          obfuscated: undefined,
+                          color: undefined
+                        },
+                        ChatMessage {
+                          json: {
+                            color: 'dark_gray',
+                            extra: [
+                              { '': '-> ' },
+                              {
+                                color: 'light_purple',
+                                extra: [
+                                  { '': 'ZaraSprite' },
+                                  {
+                                    color: 'dark_gray',
+                                    extra: [
+                                      { '': '] ' },
+                                      {
+                                        color: 'light_purple',
+                                        extra: [ 'test pm from next door' ],
+                                        text: ''
+                                      }
+                                    ],
+                                    text: ''
+                                  }
+                                ],
+                                text: ''
+                              }
+                            ],
+                            text: ''
+                          },
+                          warn: [Function: debug] {
+                            namespace: 'minecraft-protocol',
+                            useColors: true,
+                            color: 3,
+                            extend: [Function: extend],
+                            destroy: [Function: deprecated],
+                            enabled: [Getter/Setter],
+                            inspectOpts: {}
+                          },
+                          text: '',
+                          extra: [
+                            ChatMessage {
+                              json: { '': '-> ' },
+                              warn: [Function: debug] {
+                                namespace: 'minecraft-protocol',
+                                useColors: true,
+                                color: 3,
+                                extend: [Function: extend],
+                                destroy: [Function: deprecated],
+                                enabled: [Getter/Setter],
+                                inspectOpts: {}
+                              },
+                              bold: undefined,
+                              italic: undefined,
+                              underlined: undefined,
+                              strikethrough: undefined,
+                              obfuscated: undefined,
+                              color: undefined
+                            },
+                            ChatMessage {
+                              json: {
+                                color: 'light_purple',
+                                extra: [
+                                  { '': 'ZaraSprite' },
+                                  {
+                                    color: 'dark_gray',
+                                    extra: [
+                                      { '': '] ' },
+                                      {
+                                        color: 'light_purple',
+                                        extra: [ 'test pm from next door' ],
+                                        text: ''
+                                      }
+                                    ],
+                                    text: ''
+                                  }
+                                ],
+                                text: ''
+                              },
+                              warn: [Function: debug] {
+                                namespace: 'minecraft-protocol',
+                                useColors: true,
+                                color: 3,
+                                extend: [Function: extend],
+                                destroy: [Function: deprecated],
+                                enabled: [Getter/Setter],
+                                inspectOpts: {}
+                              },
+                              text: '',
+                              extra: [
+                                ChatMessage {
+                                  json: { '': 'ZaraSprite' },
+                                  warn: [Function: debug] {
+                                    namespace: 'minecraft-protocol',
+                                    useColors: true,
+                                    color: 3,
+                                    extend: [Function: extend],
+                                    destroy: [Function: deprecated],
+                                    enabled: [Getter/Setter],
+                                    inspectOpts: {}
+                                  },
+                                  bold: undefined,
+                                  italic: undefined,
+                                  underlined: undefined,
+                                  strikethrough: undefined,
+                                  obfuscated: undefined,
+                                  color: undefined
+                                },
+                                ChatMessage {
+                                  json: {
+                                    color: 'dark_gray',
+                                    extra: [
+                                      { '': '] ' },
+                                      {
+                                        color: 'light_purple',
+                                        extra: [ 'test pm from next door' ],
+                                        text: ''
+                                      }
+                                    ],
+                                    text: ''
+                                  },
+                                  warn: [Function: debug] {
+                                    namespace: 'minecraft-protocol',
+                                    useColors: true,
+                                    color: 3,
+                                    extend: [Function: extend],
+                                    destroy: [Function: deprecated],
+                                    enabled: [Getter/Setter],
+                                    inspectOpts: {}
+                                  },
+                                  text: '',
+                                  extra: [
+                                    ChatMessage {
+                                      json: { '': '] ' },
+                                      warn: [Function: debug] {
+                                        namespace: 'minecraft-protocol',
+                                        useColors: true,
+                                        color: 3,
+                                        extend: [Function: extend],
+                                        destroy: [Function: deprecated],
+                                        enabled: [Getter/Setter],
+                                        inspectOpts: {}
+                                      },
+                                      bold: undefined,
+                                      italic: undefined,
+                                      underlined: undefined,
+                                      strikethrough: undefined,
+                                      obfuscated: undefined,
+                                      color: undefined
+                                    },
+                                    ChatMessage {
+                                      json: {
+                                        color: 'light_purple',
+                                        extra: [ 'test pm from next door' ],
+                                        text: ''
+                                      },
+                                      warn: [Function: debug] {
+                                        namespace: 'minecraft-protocol',
+                                        useColors: true,
+                                        color: 3,
+                                        extend: [Function: extend],
+                                        destroy: [Function: deprecated],
+                                        enabled: [Getter/Setter],
+                                        inspectOpts: {}
+                                      },
+                                      text: '',
+                                      extra: [
+                                        ChatMessage {
+                                          json: MessageBuilder {
+                                            with: [],
+                                            extra: [],
+                                            text: 'test pm from next door'
+                                          },
+                                          warn: [Function: debug] {
+                                            namespace: 'minecraft-protocol',
+                                            useColors: true,
+                                            color: 3,
+                                            extend: [Function: extend],
+                                            destroy: [Function: deprecated],
+                                            enabled: [Getter/Setter],
+                                            inspectOpts: {}
+                                          },
+                                          text: 'test pm from next door',
+                                          extra: [],
+                                          bold: undefined,
+                                          italic: undefined,
+                                          underlined: undefined,
+                                          strikethrough: undefined,
+                                          obfuscated: undefined,
+                                          color: undefined
+                                        }
+                                      ],
+                                      bold: undefined,
+                                      italic: undefined,
+                                      underlined: undefined,
+                                      strikethrough: undefined,
+                                      obfuscated: undefined,
+                                      color: 'light_purple'
+                                    }
+                                  ],
+                                  bold: undefined,
+                                  italic: undefined,
+                                  underlined: undefined,
+                                  strikethrough: undefined,
+                                  obfuscated: undefined,
+                                  color: 'dark_gray'
+                                }
+                              ],
+                              bold: undefined,
+                              italic: undefined,
+                              underlined: undefined,
+                              strikethrough: undefined,
+                              obfuscated: undefined,
+                              color: 'light_purple'
+                            }
+                          ],
+                          bold: undefined,
+                          italic: undefined,
+                          underlined: undefined,
+                          strikethrough: undefined,
+                          obfuscated: undefined,
+                          color: 'dark_gray'
+                        }
+                      ],
+                      bold: undefined,
+                      italic: undefined,
+                      underlined: undefined,
+                      strikethrough: undefined,
+                      obfuscated: undefined,
+                      color: 'gold'
+                    }
+                  ],
+                  bold: undefined,
+                  italic: undefined,
+                  underlined: undefined,
+                  strikethrough: undefined,
+                  obfuscated: undefined,
+                  color: 'dark_gray'
+                }
+              ],
+              bold: undefined,
+              italic: undefined,
+              underlined: undefined,
+              strikethrough: undefined,
+              obfuscated: undefined,
+              color: 'light_purple'
+            }
+          ],
+          bold: undefined,
+          italic: undefined,
+          underlined: undefined,
+          strikethrough: undefined,
+          obfuscated: undefined,
+          color: 'dark_gray'
+        }
+      ],
+      bold: undefined,
+      italic: undefined,
+      underlined: undefined,
+      strikethrough: undefined,
+      obfuscated: undefined,
+      color: undefined,
+      clickEvent: { action: 'suggest_command', value: '/pm Zarathale' },
+      hoverEvent: {
+        action: 'show_text',
+        contents: {
+          extra: [
+            {
+              extra: [
+                {
+                  color: 'gray',
+                  extra: [
+                    {
+                      color: 'white',
+                      extra: [ 'Private Message' ],
+                      text: ''
+                    }
+                  ],
+                  text: ''
+                }
+              ],
+              text: ''
+            },
+            { '': '\n' },
+            {
+              extra: [
+                {
+                  color: 'dark_aqua',
+                  extra: [
+                    { '': 'Received: ' },
+                    {
+                      color: 'white',
+                      extra: [ '02.06.2025 21:04:01' ],
+                      text: ''
+                    }
+                  ],
+                  text: ''
+                }
+              ],
+              text: ''
+            },
+            { '': '\n' },
+            {
+              extra: [
+                {
+                  color: 'dark_aqua',
+                  extra: [
+                    { '': 'Sender: ' },
+                    {
+                      color: 'white',
+                      extra: [ 'Zarathale' ],
+                      text: ''
+                    }
+                  ],
+                  text: ''
+                }
+              ],
+              text: ''
+            },
+            { '': '\n' },
+            { '': '\n' },
+            {
+              extra: [
+                {
+                  color: 'gray',
+                  extra: [ 'Click to reply.' ],
+                  text: ''
+                }
+              ],
+              text: ''
+            }
+          ],
+          text: ''
+        }
+      }
+    },
+    ChatMessage {
+      json: {
+        color: 'light_purple',
+        hoverEvent: {
+          action: 'show_text',
+          contents: 'flpm_443a9d86-3945-4459-b904-6a2ce2aa0157 flps_715cf7cc-d892-4dd6-b673-77f27d38cdc6'
+        },
+        text: ''
+      },
+      warn: [Function: debug] {
+        namespace: 'minecraft-protocol',
+        useColors: true,
+        color: 3,
+        extend: [Function: extend],
+        destroy: [Function: deprecated],
+        enabled: [Getter/Setter],
+        inspectOpts: {}
+      },
+      text: '',
+      bold: undefined,
+      italic: undefined,
+      underlined: undefined,
+      strikethrough: undefined,
+      obfuscated: undefined,
+      color: 'light_purple',
+      hoverEvent: {
+        action: 'show_text',
+        contents: 'flpm_443a9d86-3945-4459-b904-6a2ce2aa0157 flps_715cf7cc-d892-4dd6-b673-77f27d38cdc6'
+      }
+    }
+  ],
+  bold: undefined,
+  italic: undefined,
+  underlined: undefined,
+  strikethrough: undefined,
+  obfuscated: undefined,
+  color: undefined
+}
