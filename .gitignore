@@ -128,3 +128,30 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+# Python __pycache__ and bytecode
+__pycache__/
+*.py[cod]
+
+# Virtual environment folders
+env/
+venv/
+.venv/
+
+# Flask-related files
+instance/
+*.sqlite
+*.db
+
+# Windows-specific
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# macOS-specific
+.DS_Store
+
+# Miscellaneous
+*.bak
+*.swp
+*.swo
