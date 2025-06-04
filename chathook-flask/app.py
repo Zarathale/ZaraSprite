@@ -1,7 +1,80 @@
+import os
+import sqlite3
 from flask import Flask, request, jsonify
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
 
+# ————————————————
+# CONFIGURATION
+# ————————————————
+BASE_DIR = os.path.dirname(__file__)
+DATA_DIR = os.path.abspath(os.path.join(BASE_DIR, '..', 'data'))
+DATABASE_PATH = os.path.join(DATA_DIR, 'chat.db')
+
+# Session timeout (minutes) and active‐window (hours) can be tweaked as needed
+SESSION_TIMEOUT_MINUTES = 20
+ACTIVE_WINDOW_HOURS = 48
+
+
+# ————————————————
+# SCHEMA SETUP
+# ————————————————
+def init_db():
+    """
+    Create (if not exists) the three tables:
+    1. player_profiles
+    2. sessions
+    3. messages
+    """
+    os.makedirs(DATA_DIR, exist_ok=True)
+    conn = sqlite3.connect(DATABASE_PATH)
+    cursor = conn.cursor()
+
+    # 1. player_profiles: one row per username
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS player_profiles (
+            username TEXT PRIMARY KEY,
+            first_seen TEXT,
+            last_seen TEXT,
+            session_count INTEGER DEFAULT 0,
+            avg_session_length REAL DEFAULT 0,
+            notes_json TEXT
+        )
+    """)
+
+    # 2. sessions: each conversational session for a user
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS sessions (
+            session_id       INTEGER PRIMARY KEY AUTOINCREMENT,
+            username         TEXT,
+            start_time       TEXT,
+            end_time         TEXT,
+            summary_text     TEXT,
+            is_archived      INTEGER DEFAULT 0,
+            FOREIGN KEY(username) REFERENCES player_profiles(username)
+        )
+    """)
+
+    # 3. messages: every DM logged with a pointer to its session
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS messages (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            username     TEXT,
+            message      TEXT,
+            timestamp    TEXT,
+            session_id   INTEGER,
+            FOREIGN KEY(session_id) REFERENCES sessions(session_id)
+        )
+    """)
+
+    conn.commit()
+    conn.close()
+
+
+# ————————————————
+# RECEIVE_CHAT ENDPOINT
+# ————————————————
 @app.route("/receive", methods=["POST"])
 def receive_chat():
     """
@@ -121,7 +194,6 @@ def receive_chat():
 # APPLICATION ENTRYPOINT
 # ————————————————
 if __name__ == "__main__":
-    
     # Ensure data folder + tables exist before starting
     init_db()
 
