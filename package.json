@@ -41,7 +41,7 @@
     "minecraft-data": "^3.89.0",
     "minecraft-folder-path": "^1.2.0",
     "minecraft-protocol": "^1.57.0",
-    "mineflayer": "^4.22.0",
+    "mineflayer": "github:prismarinejs/mineflayer",
     "mojangson": "^2.0.4",
     "moo": "^0.5.2",
     "ms": "^2.1.3",

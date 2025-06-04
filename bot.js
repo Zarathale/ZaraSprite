@@ -29,7 +29,7 @@ function createBot() {
     host: 'mc.playtheatria.com',
     port: 25565,
     username: 'ZaraSprite@outlook.com', // Microsoft account email
-    version: '1.21.4', // Match the Theatria server version
+    version: '1.21.4',
     auth: 'microsoft' // Using Microsoft authentication
   });
 
