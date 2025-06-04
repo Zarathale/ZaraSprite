@@ -51,31 +51,10 @@ function createBot() {
     console.error('❌ Error:', err);
   });
 
-  bot.on('message', (jsonMsg) => {
-    const msg = extractText(jsonMsg).trim();
-    let sender = null;
-   
-    console.dir(jsonMsg, { depth: null });
+ bot.on('whisper', (username, message, translate, jsonMsg, matches) => {
+  console.log(`📩 PM from ${username}: ${message}`);
+});
 
-    try {
-      const hover = jsonMsg.hoverEvent?.contents?.extra;
-      const senderLine = hover?.find(
-        line => extractText(line).includes('Sender: ')
-      );
-      const senderText = extractText(senderLine);
-      sender = senderText.replace('Sender: ', '').trim();
-    } catch (e) {
-      // Silent fallback
-    }
-
-    if (sender) {
-      console.log(`📩 PM from ${sender}: ${msg}`);
-    } else if (msg) {
-      console.log('💬 Chat:', msg);
-    } else {
-      console.log('📭 Chat: (no visible text)');
-    }
-  });
 
 
 
