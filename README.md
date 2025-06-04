@@ -1,423 +1,765 @@
-# ZaraSprite Chat Relay
+ZaraSprite Chat Relay
+This project connects the Minecraft server Theatria with a GPT-powered assistant named ZaraSprite. Private messages (PMs) sent to ZaraSprite are logged by a lightweight Flask service, processed by a Node.js bot that handles session logic and GPT calls, and then delivered back in-game—ensuring responsive, stateful interactions without embedding AI directly on the server.
 
-This project bridges the Minecraft server **Theatria** with a GPT-powered assistant named **ZaraSprite**. Private messages (PMs) to ZaraSprite are logged, interpreted, answered via GPT, and delivered back in-game — enabling rich, responsive interactions without server-side AI compute.
+1. Components & Key Functions
+1.1 /chathook (Paper Plugin)
+Purpose
+Intercept any private‐message (DM) sent to the in‐game player ZaraSprite and forward it immediately as JSON to the Flask service (/incoming-chat).
 
----
+Key Responsibilities
 
-## 1. Components & Key Functions
+Event Listener
 
-### 1.1 `/chathook` (Paper Plugin)
+Register a listener on Paper’s AsyncChatEvent with ChatType.PRIVATE_MESSAGE.
 
-* **Purpose**: Intercepts any private‐message (DM) sent to the in‐game player `ZaraSprite` and immediately forwards it as JSON to the Flask receiver.
-* **Key Responsibilities**:
+In the handler:
 
-  1. **Event Listener**
+java
+Copy
+Edit
+if (!event.getRecipient().getName().equalsIgnoreCase("ZaraSprite")) return;
+String sender  = event.getSender().getName();
+String message = event.message().toPlainText();
+String timestamp = Instant.now().toString();
+String id = UUID.randomUUID().toString();
+HTTP POST
 
-     * Register a listener for Paper’s `AsyncChatEvent` with `ChatType.PRIVATE_MESSAGE`.
-     * In the handler:
+Build JSON payload:
 
-       ```java
-       if (!event.getRecipient().getName().equalsIgnoreCase("ZaraSprite")) return;
-       String sender = event.getSender().getName();
-       String message = event.message().toPlainText();
-       ```
-  2. **HTTP POST**
+jsonc
+Copy
+Edit
+{
+  "id": "uuid1",
+  "player": "Alice",
+  "message": "How do I warp home?",
+  "timestamp": "2025-06-04T19:00:00Z"
+}
+POST to the Flask endpoint configured in config.yml (e.g. http://zarachat.duckdns.org:5000/incoming-chat), with:
 
-     * Build a JSON payload—e.g.
+timeout-ms: 5000
 
-       ```jsonc
-       {
-         "id": "<UUID>",
-         "player": "Alice",
-         "message": "How do I warp home?",
-         "timestamp": "2025-06-04T19:00:00Z"
-       }
-       ```
-     * POST to the Flask endpoint defined in `config.yml` (e.g. `http://zarachat.duckdns.org:5000/incoming-chat`), with a 5 s timeout and up to 3 retry attempts.
-     * If the POST fails, log the error (with stack trace if `debug: true`) to `logs/chathook-error.log` and enqueue a retry (back-off).
-* **Configuration (`config.yml`)**:
+retry-limit: 3
 
-  ```yaml
-  endpoint-url: "http://zarachat.duckdns.org:5000/incoming-chat"
-  timeout-ms: 5000
-  retry-limit: 3
-  debug: false
-  ```
-* **Permissions / Commands**:
+debug: false
 
-  * Register `/zarasprite reload` and `/zarasprite purge <username|all>` as op-only commands (permission `zarasprite.admin`).
-  * In `onCommand`, simply enqueue a special “internal” request that instructs `bot.js` to clear conversation history, then respond with an in-game confirmation.
+On failure, log the stack trace (if debug=true) to logs/chathook-error.log and retry with back-off.
 
-### 1.2 `/chathook-flask` (Flask Receiver)
+Configuration (config.yml)
 
-* **Purpose**: Receive, validate, and store incoming DMs in a lightweight, queryable data store.
-* **Key Responsibilities**:
+yaml
+Copy
+Edit
+endpoint-url: "http://zarachat.duckdns.org:5000/incoming-chat"
+timeout-ms: 5000
+retry-limit: 3
+debug: false
+Permissions & Commands
 
-  1. **HTTP Endpoint**
+Register /zarasprite reload and /zarasprite purge <username|all> under permission zarasprite.admin (ops only).
 
-     * **Route:** `POST /incoming-chat`
-     * **Payload Schema:**
+In onCommand, send an internal enqueue request to the Node bot (via database or another channel) so it can clear conversation history, then confirm in-game.
 
-       ```json
-       {
-         "id": "uuid1",
-         "player": "SirMonkeyBoy",
-         "message": "Where is the Smittiville Art Museum?",
-         "timestamp": "2025-06-04T19:00:00Z"
-       }
-       ```
-     * Return `200 OK` on success; `400 Bad Request` if JSON is malformed or missing fields; `500 Internal Server Error` if DB write fails.
-  2. **Data Validation**
+1.2 /chathook-flask (Flask Receiver)
+Purpose
+Receive, validate, and store incoming DMs in a single “pending” SQLite table. Flask remains a thin queue—no session logic or summarization on this side.
 
-     * Ensure `id`, `player`, `message`, and `timestamp` are present and correctly typed.
-     * If any key is invalid, return `400` with a JSON body explaining the error.
-  3. **Data Storage**
+Key Responsibilities
 
-     * Use **SQLite** (recommended over flat JSON) for concurrency and simple querying.
-     * Schema (in `models.py` using SQLAlchemy or plain `sqlite3`):
+HTTP Endpoint
 
-       ```sql
-       CREATE TABLE inbound_messages (
-         id TEXT PRIMARY KEY,
-         player TEXT NOT NULL,
-         message TEXT NOT NULL,
-         timestamp TEXT NOT NULL,
-         status TEXT NOT NULL CHECK(status IN ('PENDING','COMPLETE','FAILED'))
-       );
-       CREATE TABLE conversation_history (
-         msg_id INTEGER PRIMARY KEY AUTOINCREMENT,
-         player TEXT NOT NULL,
-         direction TEXT NOT NULL CHECK(direction IN ('INBOUND','OUTBOUND')),
-         text TEXT NOT NULL,
-         timestamp TEXT NOT NULL
-       );
-       ```
-     * On each valid POST, insert a row into `inbound_messages` with `status = 'PENDING'`.
-     * If insertion fails (e.g. DB locked), return `500` and log the exception to `logs/flask-error.log`.
-* **Configuration (`config.py`)**:
+Route: POST /incoming-chat
 
-  ```python
-  DB_PATH = "./data/zara.db"
-  DEBUG = False
-  ```
-* **Deployment**:
+Expected JSON Payload:
 
-  * Use Waitress or Gunicorn to serve `app.py` on port 5000.
-  * Expose only port 5000 (firewall only allows 22 and 5000).
-  * DuckDNS domain points to the server IP: `zarachat.duckdns.org` (94.156.149.73) .
+json
+Copy
+Edit
+{
+  "id": "uuid1",
+  "player": "SirMonkeyBoy",
+  "message": "Where is the Smittiville Art Museum?",
+  "timestamp": "2025-06-04T19:00:00Z"
+}
+Responses:
 
-### 1.3 `bot.js` (Mineflayer + GPT Integration)
+200 OK + {"status":"received", "id":"<uuid>"} on successful insert.
 
-* **Purpose**:
+200 OK + {"status":"duplicate","id":"<uuid>"} if the ID already exists.
 
-  1. Poll the SQLite DB for new DMs (`PENDING`).
-  2. Maintain per-player conversation history.
-  3. For each new message, build an OpenAI prompt, call GPT, store the GPT response, and immediately send it in-game (either as chat or a game command).
-  4. Handle in-game slash commands (`/zarasprite *`) for purge, warp, home, etc.
-* **Key Responsibilities**:
+400 Bad Request + {"status":"error", "error":"… "} for malformed/missing fields.
 
-  1. **Initial Connection**
+500 Internal Server Error + {"status":"error", "error":"… "} on DB failure.
 
-     ```js
-     const mineflayer = require('mineflayer');
-     const bot = mineflayer.createBot({
-       host: 'mc.playtheatria.com',
-       port: 25565,
-       username: 'ZaraSprite',
-       version: '1.20' // Paper 1.20+ compatible
-     });
-     ```
+Data Validation
 
-     * On `bot.on('login')`, log “ZaraSprite connected.”
-     * Listen for `bot.on('end')` and attempt a reconnect with exponential back-off.
-  2. **Database Access**
+Ensure all four keys (id, player, message, timestamp) exist and are strings.
 
-     * Open a single SQLite connection (`zara.db`) in read/write mode (use the same DB path as Flask).
-     * Provide helper methods:
+If any validation fails, return 400.
 
-       ```js
-       async function fetchPendingMessages() { /* SELECT * FROM inbound_messages WHERE status='PENDING' ORDER BY timestamp ASC */ }
-       async function markMessageComplete(id) { /* UPDATE inbound_messages SET status='COMPLETE' WHERE id = ? */ }
-       async function saveToConversation(player, direction, text) { /* INSERT INTO conversation_history ... */ }
-       async function purgeHistory(player) { /* DELETE FROM conversation_history WHERE player = ? */ }
-       ```
-  3. **Polling Loop (every 2 s)**
+Data Storage
 
-     ```js
-     setInterval(async () => {
-       const pending = await fetchPendingMessages();
-       for (const row of pending) {
-         const { id, player, message, timestamp } = row;
-         // 1) Mark as ‘ACTIVE’ or lock to prevent duplication
-         await markMessageInProgress(id);
-         // 2) Load last 10 history rows for ‘player’
-         const history = await fetchConversationHistory(player, 10);
-         // 3) Build OpenAI prompt
-         const prompt = buildPrompt(history, player, message); 
-         // 4) Call OpenAI with a 10 s timeout
-         let gptReply;
-         try {
-           gptReply = await callOpenAI(prompt);
-         } catch (err) {
-           await sendInGame(player, "Sorry, I’m having trouble right now. Please try again shortly.");
-           await markMessageComplete(id, 'FAILED');
-           continue;
-         }
-         // 5) Save GPT reply into conversation_history
-         await saveToConversation(player, 'INBOUND', message);
-         await saveToConversation(player, 'OUTBOUND', gptReply);
-         // 6) Send reply in-game (chunk if > 200 chars)
-         await sendInGame(player, gptReply);
-         // 7) Mark inbound_messages as COMPLETE
-         await markMessageComplete(id, 'COMPLETE');
-       }
-     }, 2000);
-     ```
+SQLite is used for its simplicity and concurrent-read support.
 
-     * **Chunking Logic**: If `gptReply.length > 200`, split into 190-char chunks, send each with a 500 ms delay.
-     * **Rate-Limiting**: If more than 3 messages are sent to the same player within 5 s, queue the extras and send them 1 s apart to avoid anti-spam kicks.
-  4. **Slash-Command Handler**
+Schema (run at startup via init_db()):
 
-     ```js
-     bot.on('chat', async (username, message) => {
-       if (username === bot.username) return; // ignore self
-       if (!message.startsWith('/zarasprite ')) return;
-       const args = message.slice(11).trim().split(' ');
-       const sub = args.shift().toLowerCase();
-       switch(sub) {
-         case 'purge':
-           await purgeHistory(username);
-           await bot.chat(`/tell ${username} Your chat history has been cleared.`);
-           break;
-         case 'warp':
-           if (args[0]) {
-             await bot.chat(`/warp ${args[0]}`);
-           } else {
-             await bot.chat(`/tell ${username} Usage: /zarasprite warp <location>`);
-           }
-           break;
-         case 'home':
-           await bot.chat(`/home`);
-           break;
-         default:
-           // Everything else gets forwarded to GPT via the polling system:
-           const id = generateUUID();
-           const timestamp = new Date().toISOString();
-           await insertInboundMessage({ id, player: username, message: message, timestamp });
-           break;
-       }
-     });
-     ```
+sql
+Copy
+Edit
+CREATE TABLE IF NOT EXISTS inbound_messages (
+  id        TEXT   PRIMARY KEY,
+  player    TEXT   NOT NULL,
+  message   TEXT   NOT NULL,
+  timestamp TEXT   NOT NULL,
+  status    TEXT   NOT NULL CHECK(status IN ('PENDING','IN_PROGRESS','COMPLETE','FAILED'))
+);
+On each valid POST:
 
-     * Any message not matching a known subcommand is treated as a “fresh GPT request,” inserted into `inbound_messages` with `status='PENDING'`.
-  5. **Error Handling**
+Insert a row into inbound_messages with status = 'PENDING'.
 
-     * Wrap all DB calls in `try/catch`; on failure, log to `logs/bot-error.log` and continue (but do not exit).
-     * If the OpenAI quota is reached or times out, send a fallback message in-game and skip that turn.
+If id already exists, return duplicate.
 
----
+On any DB exception (other than duplicate), return 500 and log to logs/flask-error.log.
 
-## 2. Technical Summary
+Configuration (requirements.txt)
 
-### 2.1 Project Stack
+shell
+Copy
+Edit
+Flask>=2.0
+waitress>=2.0
+Deployment
 
-* **Java (17+) / Maven** for the Paper plugin
+Use Waitress to serve on port 5000:
 
-  * Target: Paper 1.20+ server (Theatria).
-  * Dependencies: Paper API, Java 11 HttpClient (built-in), SnakeYAML for `config.yml`, a small JSON library (Gson or Jackson) for building POST payloads.
-* **Python 3.10+ / Flask 2.x / Waitress** for the REST receiver
+bash
+Copy
+Edit
+python app.py
+Expose only port 5000 in UFW (in addition to SSH).
 
-  * Minimal dependencies:
+DuckDNS domain (zarachat.duckdns.org) points to the VPS IP.
 
-    * `Flask` (for routing)
-    * `SQLAlchemy` or built-in `sqlite3` for database access
-    * `waitress` (production WSGI server)
-* **Node.js 20+ / Mineflayer** for the bot
+1.3 bot.js (Mineflayer + GPT Integration)
+Purpose
+Poll the SQLite DB for new DMs (PENDING rows), maintain per-player sessions, build OpenAI prompts, send GPT replies in-game, and manage session expiration & summarization—all in one Node process.
 
-  * Dependencies:
+Key Responsibilities
 
-    * `mineflayer` (connect to Theatria)
-    * `sqlite3` or `better-sqlite3` (DB driver)
-    * `openai` (official Node SDK)
-    * Optional: `uuid` for generating UUIDs
-* **Data Store**:
+Initial Connection & Setup
 
-  * **SQLite** (single file `zara.db` under `/data`)
+js
+Copy
+Edit
+import { createBot } from 'mineflayer';
+import sqlite3 from 'sqlite3';
+import { openai } from 'openai';
 
-    * Chosen because it’s light, requires zero external setup, supports concurrent reads (Flask writes, bot reads), and easy to query.
-    * A single-file DB avoids complications of schema migrations or JSON-parsing quirks.
-* **Operating System / Hosting**:
+const bot = createBot({
+  host: 'mc.playtheatria.com',
+  port: 25565,
+  username: 'ZaraSprite',
+  version: '1.20'
+});
 
-  * **LiquidWeb Cloud VPS**, running **Ubuntu 22.04 LTS**
+// Open SQLite (same DB file used by Flask)
+const DB = new sqlite3.Database('/full/path/to/data/zara.db');
+Database Schema (initialized at startup)
 
-    * DuckDNS domain: `zarachat.duckdns.org` → `94.156.149.73` (auto-updated via `duckdns` cron job).
-    * Open ports:
+sql
+Copy
+Edit
+-- inbound_messages already created by Flask
+CREATE TABLE IF NOT EXISTS sessions (
+  session_id   INTEGER PRIMARY KEY AUTOINCREMENT,
+  player       TEXT,
+  start_time   TEXT,
+  end_time     TEXT,
+  summary_text TEXT,
+  is_archived  INTEGER DEFAULT 0
+);
 
-      * `22` (SSH for admin)
-      * `5000` (Flask HTTP)
-      * `25565` (Minecraft, forwarded via Theatria host; not directly on this VPS)
-    * Specs (as provisioned):
+CREATE TABLE IF NOT EXISTS conversation_history (
+  msg_id     INTEGER PRIMARY KEY AUTOINCREMENT,
+  player     TEXT   NOT NULL,
+  direction  TEXT   NOT NULL CHECK(direction IN ('INBOUND','OUTBOUND')),
+  text       TEXT   NOT NULL,
+  timestamp  TEXT   NOT NULL,
+  session_id INTEGER,
+  FOREIGN KEY(session_id) REFERENCES sessions(session_id)
+);
+Polling Loop (every 2 seconds)
 
-      * CPU: 2 vCPU
-      * RAM: 4 GB
-      * Disk: 100 GB SSD
-      * Ubuntu packages installed: `python3`, `python3-venv`, `nodejs`, `npm`, `sqlite3`, `git`, `ufw`.
-    * Firewall (UFW) rules:
+js
+Copy
+Edit
+setInterval(() => {
+  DB.all(
+    "SELECT * FROM inbound_messages WHERE status = 'PENDING' ORDER BY timestamp ASC",
+    [],
+    (err, rows) => {
+      if (err) {
+        console.error("DB error fetching pending:", err);
+        return;
+      }
+      rows.forEach(handleIncomingMessage);
+    }
+  );
+}, 2000);
+Handling Each Inbound DM
 
-      ```bash
-      sudo ufw allow 22
-      sudo ufw allow 5000
-      sudo ufw enable
-      ```
-    * SSL/TLS: Left unencrypted on 5000 (behind DuckDNS). If needed, consider running `nginx` as a reverse proxy with Let’s Encrypt in the future.&#x20;
+js
+Copy
+Edit
+function handleIncomingMessage({ id, player, message, timestamp }) {
+  // Mark as IN_PROGRESS to avoid duplication
+  DB.run(
+    "UPDATE inbound_messages SET status = 'IN_PROGRESS' WHERE id = ?",
+    [id],
+    (err) => {
+      if (err) return console.error("Failed to mark IN_PROGRESS:", err);
+      processMessage(id, player, message, timestamp);
+    }
+  );
+}
+Session Assignment & Message Storage
 
-### 2.2 Folder & File Layout
+js
+Copy
+Edit
+function processMessage(inboundId, player, message, timestamp) {
+  // 1) Find most recent unarchived session for this player
+  const timeoutMinutes = 20;
+  const cutoff = new Date(Date.now() - timeoutMinutes * 60000).toISOString();
 
-```
-/ (root)
-├─ .env                  # OPENAI_API_KEY, DB_PATH=./data/zara.db
-├─ README.md             # This overview
-├─ package.json          # Node dependencies & scripts (e.g., "start": "node bot.js")
+  DB.get(
+    `SELECT s.session_id, MAX(c.timestamp) AS last_inbound
+       FROM sessions s
+       LEFT JOIN conversation_history c
+         ON c.session_id = s.session_id AND c.direction = 'INBOUND'
+      WHERE s.player = ? AND s.is_archived = 0
+      GROUP BY s.session_id
+      ORDER BY last_inbound DESC
+      LIMIT 1`,
+    [player],
+    (err, row) => {
+      if (err) return console.error("Error finding session:", err);
+
+      if (row && row.last_inbound && row.last_inbound > cutoff) {
+        // Continue existing session
+        storeInbound(row.session_id, player, message, timestamp, inboundId);
+      } else {
+        // Create a new session
+        const nowISO = new Date().toISOString();
+        DB.run(
+          "INSERT INTO sessions (player, start_time) VALUES (?, ?)",
+          [player, nowISO],
+          function (err) {
+            if (err) return console.error("Error inserting session:", err);
+            storeInbound(this.lastID, player, message, timestamp, inboundId);
+          }
+        );
+      }
+    }
+  );
+}
+Saving Inbound, Calling GPT, & Sending Outbound
+
+js
+Copy
+Edit
+function storeInbound(session_id, player, message, timestamp, inboundId) {
+  // a) Save the inbound message
+  DB.run(
+    `INSERT INTO conversation_history (player, direction, text, timestamp, session_id)
+     VALUES (?, 'INBOUND', ?, ?, ?)`,
+    [player, message, timestamp, session_id],
+    (err) => {
+      if (err) return console.error("Error inserting inbound chat:", err);
+
+      // b) Build prompt from last N history rows + optional evergreen profile
+      buildPrompt(player, session_id, (prompt) => {
+        // c) Call OpenAI
+        openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: prompt,
+          timeout: 10000
+        })
+        .then((resp) => {
+          const gptReply = resp.choices[0].message.content.trim();
+          const replyTs = new Date().toISOString();
+
+          // d) Save OUTBOUND reply
+          DB.run(
+            `INSERT INTO conversation_history (player, direction, text, timestamp, session_id)
+             VALUES (?, 'OUTBOUND', ?, ?, ?)`,
+            [player, gptReply, replyTs, session_id],
+            (err) => {
+              if (err) console.error("Error inserting outbound chat:", err);
+
+              // e) Send reply in-game (chunk if > 200 chars)
+              sendInGame(player, gptReply);
+
+              // f) Mark inbound row as COMPLETE
+              DB.run(
+                "UPDATE inbound_messages SET status = 'COMPLETE' WHERE id = ?",
+                [inboundId],
+                (err) => {
+                  if (err) console.error("Error marking COMPLETE:", err);
+                }
+              );
+            }
+          );
+        })
+        .catch((openaiErr) => {
+          console.error("OpenAI error:", openaiErr);
+          sendInGame(player, "Sorry, something went wrong. Please try again later.");
+          DB.run(
+            "UPDATE inbound_messages SET status = 'FAILED' WHERE id = ?",
+            [inboundId]
+          );
+        });
+      });
+    }
+  );
+}
+Session Expiry & Summarization
+
+js
+Copy
+Edit
+// Run every 5 minutes to archive timed-out sessions
+setInterval(() => {
+  const cutoff = new Date(Date.now() - 20 * 60000).toISOString();
+  DB.all(
+    `SELECT s.session_id
+       FROM sessions s
+       JOIN conversation_history c
+         ON c.session_id = s.session_id AND c.direction = 'INBOUND'
+      WHERE s.is_archived = 0
+      GROUP BY s.session_id
+      HAVING MAX(c.timestamp) <= ?`,
+    [cutoff],
+    (err, rows) => {
+      if (err) return console.error("Error fetching expired sessions:", err);
+      rows.forEach(({ session_id }) => summarizeSession(session_id));
+    }
+  );
+}, 5 * 60 * 1000);
+
+function summarizeSession(session_id) {
+  DB.all(
+    `SELECT direction, text
+       FROM conversation_history
+      WHERE session_id = ?
+      ORDER BY timestamp ASC`,
+    [session_id],
+    (err, historyRows) => {
+      if (err) return console.error("Error loading session for summary:", err);
+
+      const transcript = historyRows
+        .map(r => `${r.direction}: ${r.text}`)
+        .join("\n");
+
+      const summaryPrompt = [
+        { role: "system", content: "You are summarizer for a Minecraft chat session." },
+        { role: "user", content: `Summarize this conversation:\n${transcript}` }
+      ];
+
+      openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: summaryPrompt,
+        timeout: 10000
+      })
+      .then((resp) => {
+        const sessionSummary = resp.choices[0].message.content.trim();
+        const endedAt = new Date().toISOString();
+
+        DB.run(
+          `UPDATE sessions
+              SET end_time = ?, summary_text = ?, is_archived = 1
+            WHERE session_id = ?`,
+          [endedAt, sessionSummary, session_id],
+          (err) => {
+            if (err) console.error("Error archiving session:", err);
+          }
+        );
+      })
+      .catch((err) => {
+        console.error("OpenAI summary error:", err);
+      });
+    }
+  );
+}
+Slash-Command Handler
+
+js
+Copy
+Edit
+bot.on('chat', (username, message) => {
+  if (username === bot.username) return; // ignore self
+  if (!message.startsWith('/zarasprite ')) return;
+
+  const args = message.slice(11).trim().split(' ');
+  const sub = args.shift().toLowerCase();
+
+  switch(sub) {
+    case 'purge':
+      // Delete all conversation_history rows for this player
+      DB.run("DELETE FROM conversation_history WHERE player = ?", [username]);
+      bot.chat(`/tell ${username} Your chat history has been cleared.`);
+      break;
+
+    case 'warp':
+      if (args[0]) bot.chat(`/warp ${args[0]}`);
+      else bot.chat(`/tell ${username} Usage: /zarasprite warp <location>`);
+      break;
+
+    case 'home':
+      bot.chat(`/home`);
+      break;
+
+    default:
+      // Treat as a fresh GPT request
+      const inboundId = require('uuid').v4();
+      const ts = new Date().toISOString();
+      DB.run(
+        `INSERT INTO inbound_messages (id, player, message, timestamp, status)
+         VALUES (?, ?, ?, ?, 'PENDING')`,
+        [inboundId, username, message, ts],
+        (err) => {
+          if (err) console.error("Error queueing command as GPT request:", err);
+        }
+      );
+      break;
+  }
+});
+2. Technical Summary
+2.1 Project Stack
+Java (17+) / Maven for /chathook Paper plugin
+
+Target: Paper 1.20+
+
+Dependencies:
+
+Paper API
+
+Java 11 HttpClient (built-in)
+
+SnakeYAML (for config.yml)
+
+Gson or Jackson (for JSON payloads)
+
+Python 3.10+ / Flask 2.x / Waitress for /chathook-flask
+
+Dependencies (in requirements.txt):
+
+Flask
+
+waitress
+
+Node.js 20+ / Mineflayer for bot.js
+
+Dependencies (package.json):
+
+mineflayer
+
+sqlite3 or better-sqlite3
+
+openai (official Node SDK)
+
+uuid
+
+Data Store:
+
+SQLite (single file zara.db under /data)
+
+Chosen for zero-install, concurrent-read support (Flask writes, Node reads), and easy queries.
+
+Hosting / OS:
+
+LiquidWeb Cloud VPS, Ubuntu 22.04 LTS
+
+DuckDNS domain: zarachat.duckdns.org → 94.156.149.73 (auto-updated via cron)
+
+Open ports: 22 (SSH), 5000 (Flask)
+
+ufw rules:
+
+bash
+Copy
+Edit
+sudo ufw allow 22
+sudo ufw allow 5000
+sudo ufw enable
+(Optional) In future, front Flask with NGINX + Let’s Encrypt if TLS is required.
+
+3. Folder & File Layout
+bash
+Copy
+Edit
+/ (repo root)
+├─ README.md
+├─ .env                  # Contains OPENAI_API_KEY and other secrets
+├─ package.json          # For bot/ dependencies & scripts
 ├─ package-lock.json
 ├─ bot.js                # Node bot (Mineflayer + GPT logic)
 /chathook                # Paper plugin
-│   ├─ src/main/java/com/theatria/chathook/
-│   │    ├─ ChatHookPlugin.java
-│   │    ├─ ChatListener.java
-│   │    ├─ CommandHandler.java
-│   │    └─ util/HttpClientHelper.java
-│   └─ config.yml
-│   └─ plugin.yml
+│   ├─ src/main/java/…   # Java source (ChatListener.java, CommandHandler.java, etc.)
+│   ├─ config.yml        # Plugin settings (endpoint URL, timeouts, retry limits, debug)
+│   └─ plugin.yml        # Bukkit plugin descriptor
 /chathook-flask          # Flask receiver
-│   ├─ app.py
-│   ├─ models.py
-│   ├─ config.py
-│   ├─ requirements.txt
-│   └─ data/              # holds `zara.db` (SQLite file)
-/data                    # Common data folder (zara.db if you prefer a single location)
-/logs                    # All log files: bot-error.log, flask-error.log, chathook-error.log
+│   ├─ app.py            # Defines POST /incoming-chat & `inbound_messages` table
+│   ├─ requirements.txt  # Flask and Waitress
+│   └─ data/             # Contains `zara.db` SQLite file
+/logs                    # Central logs for debugging
+│   ├─ flask-error.log
+│   ├─ bot-error.log
+│   └─ chathook-error.log
 /prompts                 # System prompts, few-shot examples, template files
-/diagrams                # Architecture diagrams (optional, for reference)
-```
+/diagrams                # Architecture diagrams and system flows
+4. Full Workflow
+Player DMs ZaraSprite in-game
 
----
+/chathook Paper plugin intercepts the private message event, builds a JSON payload:
 
-## 3. Roadmap (Sequential Milestones)
+json
+Copy
+Edit
+{
+  "id": "uuid1",
+  "player": "Alice",
+  "message": "How do I warp home?",
+  "timestamp": "2025-06-04T19:00:00Z"
+}
+Plugin POSTs to http://zarachat.duckdns.org:5000/incoming-chat with a 5 s timeout and up to 3 retries.
 
-1. **Project Bootstrap**
+Flask (chathook-flask) receives the POST
 
-   * Initialize Git repo with the folder structure above.
-   * Provision LiquidWeb VPS: Ubuntu 22.04 installation, basic firewall (`ufw`), DuckDNS setup, install Python & Node.
+Validates that id, player, message, and timestamp exist.
 
-2. **Flask Receiver (§3.1)**
+Inserts into inbound_messages with status = 'PENDING'.
 
-   * Write `app.py` with `POST /incoming-chat`.
-   * Create SQLite schema: `inbound_messages`, `conversation_history`.
-   * Test with `curl` from a separate machine:
+Returns 200 OK (or 400/500 on error).
 
-     ```bash
-     curl -i -X POST http://zarachat.duckdns.org:5000/incoming-chat \
-       -H "Content-Type: application/json" \
-       -d '{"id":"test1","player":"Tester","message":"hello","timestamp":"2025-06-04T19:00:00Z"}'
-     ```
-   * Verify that `zara.db` has that row with `status='PENDING'`.
+bot.js (Node) polls every 2 seconds
 
-3. **Paper Plugin (§3.2)**
+SELECT * FROM inbound_messages WHERE status = 'PENDING' ORDER BY timestamp ASC.
 
-   * Scaffold a Maven/Gradle project under `/chathook`.
-   * Implement `ChatListener.java` → on `AsyncChatEvent`, POST to Flask using Java 11 HttpClient.
-   * Add `config.yml` and `plugin.yml`.
-   * Deploy JAR to Thetria test server; DM `ZaraSprite` in-game; confirm Flask logs it.
+For each row:
+a. Mark status = 'IN_PROGRESS'.
+b. Find or create a session under sessions (20 min inactivity → new session).
+c. Append the inbound message to conversation_history (INBOUND).
+d. Build an OpenAI prompt using last N rows of conversation_history.
+e. Call OpenAI; receive GPT reply.
+f. Save GPT reply to conversation_history (OUTBOUND).
+g. Send reply in-game via /tell <player> <gptReply> (chunk >200 chars, rate-limit).
+h. Mark the original inbound_messages row as COMPLETE (or FAILED if GPT/API error).
 
-4. **Basic `bot.js` Setup (§3.3)**
+Session Expiry & Summarization
 
-   * `npm init` → install `mineflayer`, `sqlite3`, `openai`, `uuid`.
-   * Connect `bot.js` to `mc.playtheatria.com` as `ZaraSprite`.
-   * Build DB helpers: connect to `zara.db`, implement `fetchPendingMessages()` and `markMessageComplete()`.
-   * Test: manually insert a row into `inbound_messages` via `sqlite3` CLI; confirm `bot.js` picks it up and marks it COMPLETE.
+Every 5 minutes, Node runs a query:
 
-5. **GPT Integration & In-Game Delivery**
+sql
+Copy
+Edit
+SELECT s.session_id
+  FROM sessions s
+  JOIN conversation_history c
+    ON c.session_id = s.session_id AND c.direction = 'INBOUND'
+ WHERE s.is_archived = 0
+ GROUP BY s.session_id
+HAVING MAX(c.timestamp) <= datetime('now', '-20 minutes')
+For each expired session:
+a. Load all messages in that session (INBOUND & OUTBOUND).
+b. Construct a summarization prompt:
 
-   * Flesh out the polling loop to load last 10 conversation rows, build a system prompt, call `openai.chat.completions.create(…)`.
-   * If GPT replies with text, send via `/tell <player> <reply>`.
-   * Validate chunking logic if the reply exceeds 200 characters.
-   * Confirm in-game that `ZaraSprite` responds meaningfully (e.g., a canned test prompt).
+makefile
+Copy
+Edit
+Summarize this conversation between ZaraSprite and <player>:
+INBOUND: Hello
+OUTBOUND: Hi there! How can I help?
+INBOUND: …
+c. Call OpenAI to get a 2–3 sentence summary.
+d. Update sessions with end_time, summary_text, and is_archived = 1.
 
-6. **Command Handling (§3.4)**
+Slash Commands
 
-   * Implement `/zarasprite purge` in `bot.js` (deletes from `conversation_history` and sends confirmation).
-   * Implement `/zarasprite warp <location>` and `/zarasprite home` to call `/warp` or `/home` in-game.
-   * Add these commands to `plugin.yml` so players see usage hints.
+If a player types /zarasprite purge in chat:
 
-7. **Memory Improvements & Persistent Profiles**
+Node runs DELETE FROM conversation_history WHERE player = ?
 
-   * Extend `conversation_history` with a `player_profiles` table:
+Replies in-game: “Your chat history has been cleared.”
 
-     ```sql
-     CREATE TABLE player_profiles (
-       player TEXT PRIMARY KEY,
-       profile_data TEXT,   -- JSON blob summarizing key facts
-       last_updated TEXT
-     );
-     ```
-   * On each inbound DM, if no profile exists, create a default profile skeleton (e.g., `{ "first_interaction": "2025-06-04T..." }`).
-   * Allow GPT to reference both:
+If a player types /zarasprite warp <location>:
 
-     1. The last N exchange rows from `conversation_history`.
-     2. A short “profile\_data” JSON for evergreen context (e.g., “Alice is building a nether portal”).
-   * Add a sub-command `/zarasprite profile` to display or edit the stored profile in-game.
+Node issues /warp <location> as ZaraSprite.
 
-8. **Branching Behaviors by DM Content**
+If a player types /zarasprite home:
 
-   * Define keywords or prefixes that invoke special flows:
+Node issues /home.
 
-     1. **Tour Mode** (e.g., DM starts with `tour:`) → GPT responds with a guided tour script.
-     2. **Shrine Guide** (e.g., DM contains “shrine”) → bot issues `/warp shrine` and prompts the user with instructions.
-     3. **Economy Queries** (e.g., DM “money” or “earn”) → trigger a custom script that reads in-game economy data (if available) and replies with next steps.
-   * Update `buildPrompt(...)` in `bot.js` to check for these patterns before defaulting to straight GPT.
+Any other /zarasprite … text becomes a new GPT request, inserted into inbound_messages.
 
-9. **Error-Handling & Observability**
+5. Roadmap (Sequential Milestones)
+Project Bootstrap
 
-   * Finalize logging:
+Initialize Git repo with the folder structure above.
 
-     * `logs/bot-error.log` (Node exceptions)
-     * `logs/flask-error.log` (Flask exceptions)
-     * `logs/chathook-error.log` (Java plugin HTTP failures)
-   * Build an admin command `/zarasprite stats` that returns counts of:
+Provision LiquidWeb VPS: Ubuntu 22.04, UFW (22 & 5000 allowed), DuckDNS setup, install Python 3, Node 20, sqlite3, git.
 
-     * Total DMs received (from `inbound_messages`)
-     * Pending requests
-     * Active conversation count (`SELECT COUNT(DISTINCT player) FROM conversation_history`)
-   * If the polling loop in `bot.js` detects > 3 GPT failures in 5 minutes, send a Discord webhook to a designated admin channel (optional).
+Flask Receiver (§1.2)
 
-10. **Documentation & Final Polish**
+Write app.py with POST /incoming-chat and inbound_messages schema.
 
-    * Update `README.md` with:
+Test locally with curl to ensure valid inserts and error handling.
 
-      * This Project Overview (sections 1–3 above).
-      * Clear instructions on how to build/deploy `/chathook` (Maven commands), how to start Flask (e.g., `python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt && waitress-serve --port=5000 app:app`), and how to run `bot.js` (e.g., `npm install && node bot.js`).
-    * Create a short “Troubleshooting” doc for common errors: DB lock, GPT rate limits, plugin timeouts.
-    * Draw a simple Mermaid diagram in `/diagrams/architecture.md` (or embed in `README.md`).
+Deploy on VPS; confirm zara.db is created under chathook-flask/data.
 
----
+Paper Plugin (§1.1)
 
-### Summary of How It Comes Together
+Scaffold Maven project under /chathook with ChatListener.java.
 
-1. **Player DMs** → `/chathook` Paper plugin → `Flask /incoming-chat` → stored as `PENDING` in SQLite.
-2. **`bot.js` polls** every 2 seconds → for each `PENDING` row:
+Implement POST to Flask, passing id, player, message, timestamp.
 
-   * Load last 10 conversation rows (and any evergreen profile).
-   * Construct system prompt + user message.
-   * Call OpenAI → get `gptReply`.
-   * Insert inbound/outbound rows into `conversation_history`.
-   * Send in-game reply (chat or game command).
-   * Mark `inbound_messages` as `COMPLETE`.
-3. **Slash commands** (`/zarasprite *`) all funnel through `bot.js`, which updates the DB or issues Minecraft commands directly.
+Test on Theatria dev server: DM ZaraSprite → inspect Flask’s DB for new rows.
 
-Over time, this sequence can be expanded into specialized flows (tours, shrine guidance, economy helper) simply by adding pattern checks inside `bot.js` before falling back on GPT. All persistent state (DMs, history, profiles) lives in a single SQLite file (`zara.db`), which both Flask and the Node bot share on your Ubuntu VPS at LiquidWeb.
+Basic bot.js Setup (§1.3)
 
-This design meets your low-code preference by keeping the “GPT logic” in one place (`bot.js`), minimizing inter-language plumbing and allowing easy future extraction if needed.
+npm init; install mineflayer, sqlite3, openai, uuid.
 
----
+Connect to Theatria as ZaraSprite.
 
-Questions or collaboration ideas? Message **Zarathale** on Theatria or Discord.
+Build DB helper that opens /data/zara.db.
+
+Test: manually INSERT a row into inbound_messages; confirm bot.js picks it up, marks COMPLETE.
+
+GPT Integration & In-Game Delivery
+
+Flesh out the polling loop: load last 10 conversation_history rows, call OpenAI.
+
+Save GPT’s reply, send via /tell. Confirm functionality in-game.
+
+Session Expiry & Summarization Logic
+
+Implement the “archive every 5 minutes” routine.
+
+Confirm that sessions get end_time and summary_text after inactivity.
+
+Slash-Command Handler Updates
+
+Add /zarasprite purge, /zarasprite warp <location>, /zarasprite home.
+
+Confirm that “pure GPT requests” (/zarasprite <text>) enqueue into inbound_messages.
+
+Error-Handling & Observability
+
+Finalize logs/flask-error.log, logs/bot-error.log, logs/chathook-error.log.
+
+Add an admin command /zarasprite stats to show counts of:
+
+Total PENDING inbound messages
+
+Active sessions
+
+Summarized sessions
+
+(Optional) Hook into a Discord webhook on repeated GPT failures.
+
+Documentation & Polish
+
+Update this README.md to reflect final folder layout and workflows.
+
+Write a short “Troubleshooting” doc for common errors: DB locks, plugin timeouts, GPT rate limits.
+
+Add a Mermaid diagram under /diagrams/architecture.md illustrating the flow:
+
+bash
+Copy
+Edit
+Player DM → /chathook Plugin → Flask /incoming-chat (inbound_messages PENDING) 
+            ↓                       ↑
+            ↓— bot.js polls every 2s—→
+            ↓                       ↑
+bot.js writes → conversation_history (INBOUND/OUTBOUND); sends /tell in-game 
+            ↓
+Session expires → bot.js → Summarize → sessions (archived)
+6. Deployment & Run Commands
+6.1 Flask Receiver
+SSH into VPS:
+
+bash
+Copy
+Edit
+ssh root@94.156.149.73
+Navigate to the Flask folder and pull latest:
+
+bash
+Copy
+Edit
+cd ~/ZaraSprite/chathook-flask
+git pull origin main
+Ensure data/ exists and install dependencies:
+
+bash
+Copy
+Edit
+mkdir -p data
+source venv/bin/activate
+pip install -r requirements.txt
+Run the Flask app:
+
+bash
+Copy
+Edit
+python app.py
+Verify with curl:
+
+bash
+Copy
+Edit
+curl -i -X POST http://localhost:5000/incoming-chat \
+  -H "Content-Type: application/json" \
+  -d '{"id":"test123","player":"Tester","message":"hello","timestamp":"2025-06-04T20:00:00Z"}'
+6.2 Node Bot
+SSH into VPS (if not already):
+
+bash
+Copy
+Edit
+ssh root@94.156.149.73
+Navigate to bot folder and pull latest:
+
+bash
+Copy
+Edit
+cd ~/ZaraSprite
+git pull origin main
+Install dependencies:
+
+bash
+Copy
+Edit
+cd ~/ZaraSprite
+npm install
+Ensure the same SQLite path is referenced in bot.js (e.g. /home/ubuntu/ZaraSprite/chathook-flask/data/zara.db).
+
+Run the bot:
+
+bash
+Copy
+Edit
+node bot.js
+7. Summary
+Player DMs ZaraSprite → /chathook Paper plugin → Flask /incoming-chat → stored in inbound_messages (PENDING).
+
+bot.js polls inbound queue → assigns/continues a session → saves inbound to conversation_history → calls GPT → saves outbound to conversation_history → sends reply in-game → marks inbound row COMPLETE.
+
+Session expiry after 20 min idle → Node summarizes entire conversation via GPT → saves summary to sessions → marks session is_archived = 1.
+
+Slash commands (/zarasprite purge, /zarasprite warp <...>, /zarasprite home) handled entirely in bot.js.
+
+By keeping Flask as a minimal “pending queue” and centralizing all session, history, and summarization logic in Node, you maintain clear separation of concerns, simplify troubleshooting, and meet the project’s low-code, maintainable goals.
+
+Questions or collaboration ideas? Message Zarathale on Theatria or Discord.
