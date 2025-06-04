@@ -1,0 +1,13 @@
+# chathook Configuration
+
+# URL to which DMs will be POSTed as JSON
+endpoint-url: "http://zarachat.duckdns.org:5000/chat"
+
+# Timeout for HTTP requests, in milliseconds
+timeout-ms: 5000
+
+# Number of retry attempts on HTTP failure
+retry-limit: 3
+
+# Debug mode: if true, full stack traces will be printed and written to error.log
+debug: false
