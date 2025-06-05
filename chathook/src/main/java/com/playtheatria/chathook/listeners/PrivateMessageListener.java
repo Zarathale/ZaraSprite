@@ -1,5 +1,6 @@
 package com.playtheatria.chathook.listeners;
 
+import com.google.gson.JsonObject;
 import com.playtheatria.chathook.utils.ConfigManager;
 import com.playtheatria.chathook.utils.FileLogger;
 import com.playtheatria.chathook.utils.HttpPostTask;
@@ -13,17 +14,13 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.time.Instant;
 
 public class PrivateMessageListener implements Listener {
-    private final JavaPlugin plugin;
-    private final ConfigManager cfg;
-    private final FileLogger fileLogger; // NEW field
 
-    /**
-     * UPDATED constructor. Now accepts FileLogger instance.
-     */
-    public PrivateMessageListener(JavaPlugin plugin, ConfigManager cfg, FileLogger fileLogger) {
+    private final JavaPlugin plugin;
+    private final ConfigManager configManager;
+
+    public PrivateMessageListener(JavaPlugin plugin, ConfigManager configManager) {
         this.plugin = plugin;
-        this.cfg = cfg;
-        this.fileLogger = fileLogger;
+        this.configManager = configManager;
     }
 
     @EventHandler
@@ -33,19 +30,19 @@ public class PrivateMessageListener implements Listener {
         String recipient = event.getRecipient().getName();
         if (!recipient.equalsIgnoreCase("ZaraSprite")) return;
 
-        String senderName = event.getSender().getName();
-        String rawMessage = event.message().toPlainText();
+        String sender = event.getSender().getName();
+        String message = event.message().toPlainText();
 
-        String jsonString = String.format(
-            "{\"username\":\"%s\",\"message\":\"%s\",\"timestamp\":\"%s\"}",
-            senderName,
-            rawMessage.replace("\"", "\\\""),
-            Instant.now().toString()
-        );
+        JsonObject payload = new JsonObject();
+        payload.addProperty("username", sender);
+        payload.addProperty("message", message);
+        payload.addProperty("timestamp", Instant.now().toString());
+
+        String json = payload.toString();
 
         plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
-            HttpPostTask.postJson(jsonString, cfg);
-            fileLogger.logToUserFile(senderName, jsonString, "SENT");
+            HttpPostTask.postJson(json, configManager);
+            FileLogger.logToUserFile(sender, json, "SENT");
         });
     }
 }
