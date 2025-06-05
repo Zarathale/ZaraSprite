@@ -1,23 +1,23 @@
 name: chathook
 version: 1.0.0
-main: com.playtheatria.chathook.ChatHookPlugin
+main: com.playtheatria.chathook.ChathookPlugin
 api-version: "1.20"
 
 commands:
   chathook:
-    description: "chathook plugin primary command."
-    usage: "/<command> reload | purge <username> | purge all"
-    permission: chathook.mod   # base node for any subcommand
+    description: "Manage chathook: reload config or purge logs"
+    usage: "/chathook <reload|purger <username>|purgeall>"
+    permission: chathook.mod
 
 permissions:
-  # Administrators (op by default) – full control
+  # Administrators (ops by default) – full control, including granting 'mod' to others
   chathook.admin:
-    description: "Full access to chathook, including granting 'mod' to others"
+    description: "Full access to chathook, including assigning mod status"
     default: op
     children:
       chathook.mod: true
 
-  # Moderators – can reload config, purge logs for anyone, and purge all
+  # Moderators – can reload config, purge any logs, or allow users to purge their own
   chathook.mod:
-    description: "Can reload config, purge any logs, or allow users to purge their own"
+    description: "Can reload config and purge logs"
     default: false
