@@ -1,107 +1,85 @@
-package com.playtheatria.chathook;
+package com.playtheatria.chathook.commands;
 
+import com.playtheatria.chathook.utils.ConfigManager;
+import com.playtheatria.chathook.utils.FileLogger;
 import org.bukkit.command.Command;
-import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.command.TabExecutor;
 
-import java.io.File;
+import java.util.List;
 
-/**
- * Handles "/chathook" commands:
- *   - reload         → requires chathook.mod or chathook.admin
- *   - purge all      → requires chathook.mod or chathook.admin
- *   - purge <user>   → allowed if (sender == <user>) OR (sender has chathook.mod) OR (sender has chathook.admin)
- */
-public class ChathookCommand implements CommandExecutor {
+public class ChathookCommand implements TabExecutor {
+    private final ConfigManager cfg;
+    private final FileLogger fileLogger; // NEW field
 
-    private final ChatHookPlugin plugin;
-
-    public ChathookCommand(ChatHookPlugin plugin) {
-        this.plugin = plugin;
+    /**
+     * UPDATED constructor: accept both managers
+     */
+    public ChathookCommand(ConfigManager cfg, FileLogger fileLogger) {
+        this.cfg = cfg;
+        this.fileLogger = fileLogger;
     }
 
     @Override
-    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        // Base permission check: requires at least chathook.mod
-        if (!sender.hasPermission("chathook.mod") && !sender.hasPermission("chathook.admin")) {
-            sender.sendMessage("§cYou do not have permission to use any /chathook commands.");
-            return true;
-        }
-
+    public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
         if (args.length == 0) {
-            sender.sendMessage("§eUsage: /chathook reload | purge <username> | purge all");
+            sender.sendMessage("§eUsage: /chathook <purgeall|purger <username>|reload>");
             return true;
         }
 
         String sub = args[0].toLowerCase();
         switch (sub) {
-            case "reload":
-                // reload → only mod or admin
-                if (!sender.hasPermission("chathook.mod") && !sender.hasPermission("chathook.admin")) {
-                    sender.sendMessage("§cYou do not have permission to reload chathook.");
+            case "purgeall":
+                if (!sender.isOp() && !sender.hasPermission("chathook.purgeall")) {
+                    sender.sendMessage("§cYou don’t have permission to purge all logs.");
                     return true;
                 }
-                plugin.reloadConfig();
-                plugin.loadConfigValues();
-                sender.sendMessage("§aConfig reloaded.");
-                plugin.getLogger().info("Config reloaded by " + sender.getName());
+                fileLogger.purgeAllLogs();
+                sender.sendMessage("§aAll user logs purged.");
                 break;
 
-            case "purge":
+            case "purger":
                 if (args.length < 2) {
-                    sender.sendMessage("§eUsage: /chathook purge <username> | purge all");
+                    sender.sendMessage("§cUsage: /chathook purger <username>");
                     return true;
                 }
-
-                String target = args[1];
-                if (target.equalsIgnoreCase("all")) {
-                    // purge all → only mod or admin
-                    if (!sender.hasPermission("chathook.mod") && !sender.hasPermission("chathook.admin")) {
-                        sender.sendMessage("§cYou do not have permission to purge all logs.");
-                        return true;
-                    }
-                    purgeAllLogs();
-                    sender.sendMessage("§aPurged all chathook logs.");
-                    plugin.getLogger().info("All chathook logs purged by " + sender.getName());
-                } else {
-                    // purge <username> → allowed if sender == target OR has mod/admin
-                    if (sender.getName().equalsIgnoreCase(target)
-                            || sender.hasPermission("chathook.mod")
-                            || sender.hasPermission("chathook.admin")) {
-                        purgeUserLog(target, sender);
-                    } else {
-                        sender.sendMessage("§cYou can only purge your own logs or must have mod permissions.");
-                    }
+                String targetUser = args[1];
+                boolean canPurge =
+                    sender.isOp()
+                    || sender.hasPermission("chathook.purgeall")
+                    || sender.getName().equalsIgnoreCase(targetUser);
+                if (!canPurge) {
+                    sender.sendMessage("§cYou don’t have permission to purge logs for “" + targetUser + "”.");
+                    return true;
                 }
+                boolean deleted = fileLogger.purgeUserLog(targetUser);
+                if (deleted) {
+                    sender.sendMessage("§aPurged logs for " + targetUser + ".");
+                } else {
+                    sender.sendMessage("§eNo logs exist for user " + targetUser + ".");
+                }
+                break;
+
+            case "reload":
+                if (!sender.isOp() && !sender.hasPermission("chathook.reload")) {
+                    sender.sendMessage("§cYou don’t have permission to reload config.");
+                    return true;
+                }
+                cfg.reload();
+                sender.sendMessage("§aConfiguration reloaded.");
                 break;
 
             default:
-                sender.sendMessage("§eUnknown subcommand. Usage: /chathook reload | purge <username> | purge all");
+                sender.sendMessage("§cUnknown subcommand. Options: purgeall, purger, reload");
         }
-
         return true;
     }
 
-    private void purgeAllLogs() {
-        File logsDir = plugin.getLogsFolder();
-        File[] files = logsDir.listFiles();
-        if (files != null) {
-            for (File f : files) {
-                f.delete();
-            }
+    @Override
+    public List<String> onTabComplete(CommandSender sender, Command cmd, String alias, String[] args) {
+        if (args.length == 1) {
+            return List.of("purgeall", "purger", "reload");
         }
-    }
-
-    private void purgeUserLog(String username, CommandSender sender) {
-        File userLog = new File(plugin.getLogsFolder(), username + ".log");
-        if (userLog.exists()) {
-            if (userLog.delete()) {
-                sender.sendMessage("§aPurged logs for " + username + ".");
-            } else {
-                sender.sendMessage("§cFailed to purge logs for " + username + ".");
-            }
-        } else {
-            sender.sendMessage("§eNo logs exist for user " + username + ".");
-        }
+        return List.of();
     }
 }

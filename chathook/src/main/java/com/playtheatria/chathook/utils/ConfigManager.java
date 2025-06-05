@@ -2,10 +2,12 @@ package com.playtheatria.chathook.utils;
 
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
+import com.playtheatria.chathook.Chathook;
 
 import java.io.File;
 
 public class ConfigManager {
+    private final Chathook plugin;
     private final File configFile;
     private FileConfiguration config;
 
@@ -15,16 +17,20 @@ public class ConfigManager {
     private int retryLimit;
 
     /**
-     * Call once in onEnable() of ChathookPlugin:
-     *   configManager = new ConfigManager(getDataFolder());
+     * Constructor—call this early in onEnable():
+     *   ConfigManager configManager = new ConfigManager(this);
      */
-    public ConfigManager(File dataFolder) {
-        this.configFile = new File(dataFolder, "config.yml");
+    public ConfigManager(Chathook pluginInstance) {
+        this.plugin = pluginInstance;
+        this.configFile = new File(plugin.getDataFolder(), "config.yml");
         loadFromFile();
     }
 
+    /**
+     * Load values from config.yml into fields.
+     */
     private void loadFromFile() {
-        // If config.yml doesn’t exist, the plugin’s saveDefaultConfig() already created it.
+        // Assume saveDefaultConfig() was already called in the main plugin.
         this.config = YamlConfiguration.loadConfiguration(configFile);
         this.debug = config.getBoolean("debug", false);
         this.endpointUrl = config.getString("endpoint-url", "");
@@ -32,7 +38,7 @@ public class ConfigManager {
         this.retryLimit = config.getInt("retry-limit", 3);
     }
 
-    /** Re-read config.yml from disk and update fields. */
+    /** Re-read config.yml from disk. */
     public void reload() {
         loadFromFile();
     }

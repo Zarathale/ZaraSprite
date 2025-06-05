@@ -13,24 +13,26 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class FileLogger {
-    private static JavaPlugin plugin;
-    private static Logger consoleLogger;
-    private static File logsFolder;
+    private final JavaPlugin plugin;
+    private final Logger consoleLogger;
+    private final File logsFolder;
 
     /**
-     * Must be called once in onEnable():
-     *   FileLogger.initialize(this, new File(getDataFolder(), "logs"));
+     * Constructor—call this early in onEnable():
+     *   File logsDir = new File(plugin.getDataFolder(), "logs");
+     *   logsDir.mkdirs();
+     *   FileLogger fileLogger = new FileLogger(plugin, logsDir);
      */
-    public static void initialize(JavaPlugin pluginInstance, File logsDir) {
-        plugin = pluginInstance;
-        consoleLogger = plugin.getLogger();
-        logsFolder = logsDir;
+    public FileLogger(JavaPlugin pluginInstance, File logsDir) {
+        this.plugin = pluginInstance;
+        this.consoleLogger = pluginInstance.getLogger();
+        this.logsFolder = logsDir;
     }
 
     /**
      * Append a timestamped line to "<senderName>.log" under logsFolder.
      */
-    public static void logToUserFile(String senderName, String jsonString, String status) {
+    public void logToUserFile(String senderName, String jsonString, String status) {
         File userLogFile = new File(logsFolder, senderName + ".log");
         String timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now());
         String line = String.format("[%s] %s → %s%n", timestamp, jsonString, status);
@@ -44,9 +46,9 @@ public class FileLogger {
     }
 
     /**
-     * Log an error message (and stack trace if debugMode=true) to console + "error.log".
+     * Log an error message (and stack trace if debugMode=true) to console and to "error.log".
      */
-    public static void logError(String message, Exception ex, boolean debugMode) {
+    public void logError(String message, Exception ex, boolean debugMode) {
         if (debugMode && ex != null) {
             consoleLogger.log(Level.SEVERE, message, ex);
         } else {
@@ -74,8 +76,10 @@ public class FileLogger {
         }
     }
 
-    /** Delete every file under logsFolder. */
-    public static void purgeAllLogs() {
+    /**
+     * Delete every file under logsFolder.
+     */
+    public void purgeAllLogs() {
         File[] files = logsFolder.listFiles();
         if (files != null) {
             for (File f : files) {
@@ -86,9 +90,10 @@ public class FileLogger {
 
     /**
      * Delete "<username>.log" if it exists.
-     * @return true if deletion succeeded; false if file didn’t exist or deletion failed.
+     *
+     * @return true if deletion succeeded; false otherwise.
      */
-    public static boolean purgeUserLog(String username) {
+    public boolean purgeUserLog(String username) {
         File userLog = new File(logsFolder, username + ".log");
         if (userLog.exists()) {
             return userLog.delete();

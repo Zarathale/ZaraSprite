@@ -1,84 +1,51 @@
-package com.playtheatria.chathook;
+package com.playtheatria.chathook.listeners;
 
-import com.google.gson.JsonObject;
-import org.bukkit.Bukkit;
+import com.playtheatria.chathook.utils.ConfigManager;
+import com.playtheatria.chathook.utils.FileLogger;
+import com.playtheatria.chathook.utils.HttpPostTask;
+
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
-import org.bukkit.event.chat.AsyncChatEvent;
 import org.bukkit.event.chat.ChatType;
-import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.event.player.AsyncChatEvent;
+import org.bukkit.plugin.java.JavaPlugin;
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.time.format.DateTimeFormatter;
-import java.util.UUID;
-import java.util.logging.Level;
 
-/**
- * Listens for AsyncChatEvent with ChatType.PRIVATE_MESSAGE.
- * When a DM to "ZaraSprite" is detected, extracts sender and message,
- * builds JSON payload, logs to file, and dispatches an HTTP POST asynchronously.
- */
-public class PMListener implements Listener {
+public class PrivateMessageListener implements Listener {
+    private final JavaPlugin plugin;
+    private final ConfigManager cfg;
+    private final FileLogger fileLogger; // NEW field
 
-    private final ChatHookPlugin plugin;
-
-    public PMListener(ChatHookPlugin plugin) {
+    /**
+     * UPDATED constructor. Now accepts FileLogger instance.
+     */
+    public PrivateMessageListener(JavaPlugin plugin, ConfigManager cfg, FileLogger fileLogger) {
         this.plugin = plugin;
+        this.cfg = cfg;
+        this.fileLogger = fileLogger;
     }
 
     @EventHandler
     public void onPrivateMessage(AsyncChatEvent event) {
-        // Only intercept private messages
-        if (event.getChatType() != ChatType.PRIVATE_MESSAGE) {
-            return;
-        }
+        if (event.getChatType() != ChatType.PRIVATE_MESSAGE) return;
 
-        // Check if recipient is exactly "ZaraSprite" (case-insensitive)
-        if (!event.getRecipient().getName().equalsIgnoreCase("ZaraSprite")) {
-            return;
-        }
+        String recipient = event.getRecipient().getName();
+        if (!recipient.equalsIgnoreCase("ZaraSprite")) return;
 
         String senderName = event.getSender().getName();
-        String messageText = event.message().toPlainText();
-        String timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now());
-        String uuid = UUID.randomUUID().toString();
+        String rawMessage = event.message().toPlainText();
 
-        // Build JSON payload using Gson
-        JsonObject payload = new JsonObject();
-        payload.addProperty("username", senderName);
-        payload.addProperty("message", messageText);
-        payload.addProperty("timestamp", timestamp);
-        payload.addProperty("uuid", uuid);
+        String jsonString = String.format(
+            "{\"username\":\"%s\",\"message\":\"%s\",\"timestamp\":\"%s\"}",
+            senderName,
+            rawMessage.replace("\"", "\\\""),
+            Instant.now().toString()
+        );
 
-        String jsonString = payload.toString();
-
-        // Log to <sender>.log (append)
-        logToUserFile(senderName, jsonString, "PENDING");
-
-        // Dispatch HTTP POST in an asynchronous task
-        BukkitRunnable httpTask = new HttpPostTask(plugin, senderName, jsonString);
-        var bukkitTask = httpTask.runTaskAsynchronously(plugin);
-        plugin.trackTask(bukkitTask);
-    }
-
-    /**
-     * Appends a line to <sender>.log under plugins/chathook/logs/
-     * Format: [ISO_TIMESTAMP] JSON_PAYLOAD → STATUS
-     */
-    private void logToUserFile(String senderName, String jsonString, String status) {
-        File userLogFile = new File(plugin.getLogsFolder(), senderName + ".log");
-        String timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now());
-        String line = String.format("[%s] %s → %s%n", timestamp, jsonString, status);
-
-        try (FileWriter writer = new FileWriter(userLogFile, true)) {
-            writer.write(line);
-        } catch (IOException e) {
-            plugin.getLogger().log(Level.WARNING,
-                    "Could not write to log file for user " + senderName, e);
-        }
+        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+            HttpPostTask.postJson(jsonString, cfg);
+            fileLogger.logToUserFile(senderName, jsonString, "SENT");
+        });
     }
 }
