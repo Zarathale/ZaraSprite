@@ -5,68 +5,49 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 public class ConfigManager {
 
-    private final JavaPlugin plugin;
-    private final FileConfiguration config;
-
-    // Config keys
-    private static final String ENDPOINT_URL_KEY = "endpoint-url";
-    private static final String TIMEOUT_MS_KEY = "timeout-ms";
-    private static final String RETRY_LIMIT_KEY = "retry-limit";
-    private static final String DEBUG_KEY = "debug";
-
-    // Defaults
-    private static final int DEFAULT_TIMEOUT_MS = 5000;
-    private static final int DEFAULT_RETRY_LIMIT = 3;
+    private final String endpointUrl;
+    private final int timeoutMs;
+    private final int retryLimit;
+    private final String logFolderName;
+    private final String botName;
 
     public ConfigManager(JavaPlugin plugin) {
-        this.plugin = plugin;
-        this.plugin.saveDefaultConfig();
-        this.config = plugin.getConfig();
+        FileConfiguration config = plugin.getConfig();
 
-        validateConfig();
-    }
+        this.endpointUrl = config.getString("endpoint-url", "http://localhost:5000/receive");
+        this.timeoutMs = config.getInt("timeout-ms", 3000);
+        this.retryLimit = config.getInt("retry-limit", 3);
 
-    private void validateConfig() {
-        boolean changed = false;
-
-        if (!config.contains(ENDPOINT_URL_KEY)) {
-            config.set(ENDPOINT_URL_KEY, "http://localhost:5000/chat");
-            changed = true;
+        String folder = config.getString("log-folder", "logs");
+        if (folder == null || folder.trim().isEmpty()) {
+            throw new IllegalArgumentException("log-folder must not be empty");
         }
+        this.logFolderName = folder;
 
-        if (!config.contains(TIMEOUT_MS_KEY)) {
-            config.set(TIMEOUT_MS_KEY, DEFAULT_TIMEOUT_MS);
-            changed = true;
+        String bot = config.getString("botName", "ZaraSprite");
+        if (bot == null || bot.trim().isEmpty()) {
+            throw new IllegalArgumentException("botName must not be empty");
         }
-
-        if (!config.contains(RETRY_LIMIT_KEY)) {
-            config.set(RETRY_LIMIT_KEY, DEFAULT_RETRY_LIMIT);
-            changed = true;
-        }
-
-        if (!config.contains(DEBUG_KEY)) {
-            config.set(DEBUG_KEY, false);
-            changed = true;
-        }
-
-        if (changed) {
-            plugin.saveConfig();
-        }
+        this.botName = bot;
     }
 
     public String getEndpointUrl() {
-        return config.getString(ENDPOINT_URL_KEY);
+        return endpointUrl;
     }
 
     public int getTimeoutMs() {
-        return config.getInt(TIMEOUT_MS_KEY, DEFAULT_TIMEOUT_MS);
+        return timeoutMs;
     }
 
     public int getRetryLimit() {
-        return config.getInt(RETRY_LIMIT_KEY, DEFAULT_RETRY_LIMIT);
+        return retryLimit;
     }
 
-    public boolean isDebug() {
-        return config.getBoolean(DEBUG_KEY, false);
+    public String getLogFolderName() {
+        return logFolderName;
+    }
+
+    public String getBotName() {
+        return botName;
     }
 }

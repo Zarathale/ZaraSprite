@@ -1,23 +1,18 @@
 name: chathook
-version: 1.0.0
 main: com.playtheatria.chathook.Chathook
-api-version: "1.20"
+version: 1.0
+description: Forwards ZaraSprite PMs to external GPT service
+api-version: 1.20
 
 commands:
   chathook:
-    description: "Manage chathook: reload config or purge logs"
-    usage: "/chathook <reload|purger <username>|purgeall>"
-    permission: chathook.mod
+    description: "Chathook admin commands (reload config or purge logs)"
+    usage: "/chathook <reload|purge all>"
+    permission: chathook.admin
 
 permissions:
-  # Administrators (ops by default) – full control, including granting 'mod' to others
   chathook.admin:
-    description: "Full access to chathook, including assigning mod status"
+    description: "Allows using /chathook reload and /chathook purge all"
     default: op
-    children:
-      chathook.mod: true
 
-  # Moderators – can reload config, purge any logs, or allow users to purge their own
-  chathook.mod:
-    description: "Can reload config and purge logs"
-    default: false
+# Logs are now in a single rolling set: plugins/Chathook/logs/chathook-*.log

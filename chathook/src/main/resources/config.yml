@@ -3,7 +3,7 @@
 # Should errors log full stack traces?
 debug: false
 
-# The HTTP endpoint to POST each private‐message JSON to
+# The HTTP endpoint to POST each private-message JSON to
 endpoint-url: "http://zarachat.duckdns.org:5000/receive"
 
 # Timeout (ms) for HTTP POST
@@ -12,5 +12,8 @@ timeout-ms: 5000
 # Number of retries if POST fails
 retry-limit: 3
 
-# Name of the bot
+# The in-game name of the bot to watch for DMs
 botName: ZaraSprite
+
+# Folder name (within plugins/chathook/) to save logs
+log-folder: logs
