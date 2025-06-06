@@ -17,3 +17,5 @@ botName: ZaraSprite
 
 # Folder name (within plugins/chathook/) to save logs
 log-folder: logs
+log-max-bytes: 1000000 # 1 MB
+log-file-count: 5 # Keep 5 rotated log files

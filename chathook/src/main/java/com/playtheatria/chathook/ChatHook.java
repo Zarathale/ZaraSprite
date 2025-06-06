@@ -3,7 +3,7 @@ package com.playtheatria.chathook;
 import com.playtheatria.chathook.commands.ChathookCommand;
 import com.playtheatria.chathook.listeners.PrivateMessageListener;
 import com.playtheatria.chathook.utils.ConfigManager;
-
+import com.playtheatria.chathook.utils.FileLogger;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
@@ -14,31 +14,44 @@ public class Chathook extends JavaPlugin {
 
     @Override
     public void onEnable() {
-        // 1. Save default config if not present
+        // 1. Save (or copy) the default config.yml if it doesn't exist
         saveDefaultConfig();
 
-        // 2. Create /logs directory if missing
-        File logsDir = new File(getDataFolder(), "logs");
-        logsDir.mkdirs();
-
-        // 3. Load config and validate keys
+        // 2. Initialize ConfigManager by passing 'this' so it can load and validate
         configManager = new ConfigManager(this);
 
-        // 4. Register PM listener
-        getServer().getPluginManager().registerEvents(
-            new PrivateMessageListener(this, configManager),
-            this);
+        // 3. Initialize FileLogger with rolling‐file settings:
+        //    • plugin data folder (plugins/Chathook)
+        //    • log folder name (from config)
+        //    • debug flag (from config)
+        //    • max bytes per file (from config)
+        //    • number of files to keep (from config)
+        File dataFolder = this.getDataFolder();
+        String logFolderName = configManager.getLogFolderName();
+        FileLogger.initialize(
+            dataFolder,
+            logFolderName,
+            configManager.isDebug(),
+            configManager.getLogMaxBytes(),
+            configManager.getLogFileCount()
+        );
 
-        // 5. Register /chathook command
+        // 4. Register the PrivateMessageListener
+        //    FileLogger.getInstance() returns the singleton static logger.
+        getServer().getPluginManager().registerEvents(
+            new PrivateMessageListener(this, configManager, FileLogger.getInstance()),
+            this
+        );
+
+        // 5. Register the /chathook command
         getCommand("chathook").setExecutor(new ChathookCommand(this, configManager));
 
-        // 6. Log plugin enable message
-        getLogger().info("Chathook enabled. Config loaded with endpoint: " + configManager.getEndpointUrl()););
+        // 6. Log that we enabled successfully (include endpoint for sanity)
+        getLogger().info("Chathook enabled. Endpoint: " + configManager.getEndpointUrl());
     }
 
     @Override
-    public void onDisab
-le() {
-        // Cleanup if needed
+    public void onDisable() {
         getLogger().info("Chathook disabled.");
     }
+}
