@@ -71,6 +71,13 @@ def init_db():
     conn.commit()
     conn.close()
 
+# ————————————————
+# HEALTH CHECK ENDPOINT
+# ————————————————
+@app.route("/health", methods=["GET"])
+def health_check():
+    return jsonify({"status": "ok"}), 200
+
 
 # ————————————————
 # RECEIVE_CHAT ENDPOINT
