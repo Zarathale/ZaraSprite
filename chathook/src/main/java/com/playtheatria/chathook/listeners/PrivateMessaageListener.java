@@ -3,6 +3,7 @@ package com.playtheatria.chathook.listeners;
 import com.playtheatria.chathook.utils.ConfigManager;
 import com.playtheatria.chathook.utils.FileLogger;
 import com.playtheatria.chathook.utils.HttpPostTask;
+
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.chat.ChatType;
@@ -17,53 +18,35 @@ public class PrivateMessageListener implements Listener {
     private final ConfigManager cfg;
     private final FileLogger fileLogger;
 
-    /**
-     * Constructor now accepts FileLogger instance.
-     */
     public PrivateMessageListener(JavaPlugin plugin, ConfigManager cfg, FileLogger fileLogger) {
-        this.plugin = plugin;
-        this.cfg = cfg;
+        this.plugin     = plugin;
+        this.cfg        = cfg;
         this.fileLogger = fileLogger;
     }
 
     @EventHandler
-    public void onPrivateMessage(AsyncChatEvent event) {
-        // Only handle PRIVATE_MESSAGE packets
-        if (event.getMessageType() != ChatType.PRIVATE_MESSAGE) {
-            return;
-        }
+    public void onPlayerPrivateMessage(AsyncChatEvent event) {
+        if (event.getMessageType() != ChatType.PRIVATE_MESSAGE) return;
+        if (!event.getRecipient().getName().equalsIgnoreCase(cfg.getBotName())) return;
 
-        // Check recipient against configured bot name (case-insensitive)
-        String botName = cfg.getBotName();
-        if (!event.getRecipient().getName().equalsIgnoreCase(botName)) {
-            return;
-        }
-
-        String senderName = event.getSender().getName();
-        String rawMessage = event.message().toPlainText();
-
-        // Build a UUID for this message
-        String uuid = UUID.randomUUID().toString();
+        String sender  = event.getSender().getName();
+        String message = event.message().toPlainText();
         String timestamp = Instant.now().toString();
+        String id      = UUID.randomUUID().toString();
 
-        // Escape any quotes in the message
-        String escaped = rawMessage.replace("\"", "\\\"");
-
-        // Construct JSON payload with username, message, timestamp, and uuid
-        String jsonString = String.format(
-            "{\"username\":\"%s\",\"message\":\"%s\",\"timestamp\":\"%s\",\"uuid\":\"%s\"}",
-            senderName,
-            escaped,
-            timestamp,
-            uuid
+        String json = String.format(
+            "{\"id\":\"%s\",\"player\":\"%s\",\"message\":\"%s\",\"timestamp\":\"%s\"}",
+            id, sender, escapeJson(message), timestamp
         );
 
-        // Schedule the HTTP POST + logging off the main thread
-        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
-            // Send the JSON to your Flask endpoint
-            HttpPostTask.postJson(jsonString, cfg);
-            // Also append to a per-user log file
-            fileLogger.logToUserFile(senderName, jsonString, "SENT");
-        });
+        // Log locally
+        fileLogger.logInfo(sender, message);
+
+        // Fire off the HTTP POST (self-scheduling/retrying)
+        HttpPostTask.postJson(plugin, json, cfg);
+    }
+
+    private String escapeJson(String raw) {
+        return raw.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 }

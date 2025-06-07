@@ -1,6 +1,8 @@
 package com.playtheatria.chathook.utils;
 
-import java.io.IOException;
+import org.bukkit.Bukkit;
+import org.bukkit.plugin.java.JavaPlugin;
+
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -8,28 +10,29 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 
 /**
- * Utility for sending JSON payloads to a configured endpoint, with retry logic.
- * 
- * Usage:
- *   HttpPostTask.postJson(jsonPayload, configManager);
- * 
- * This runs synchronously (intended to be called off the main server thread).
+ * Sends a JSON payload to the configured endpoint, with automatic
+ * async scheduling and recursive retry (no blocking sleeps).
  */
 public class HttpPostTask {
-    // A single, reusable HttpClient instance:
     private static HttpClient sharedClient = null;
 
     /**
-     * Send a JSON payload to the endpoint defined in cfg.
-     * Retries up to cfg.getRetryLimit() times on failure, pausing briefly between attempts.
+     * Begin an asynchronous POST of the given JSON.  This will
+     * schedule itself off the main thread and retry up to cfg.getRetryLimit()
+     * with a 10‐tick backoff.
      *
-     * Must be called off the main Minecraft thread (e.g., via Bukkit.getScheduler().runTaskAsynchronously()).
-     *
-     * @param jsonPayload The JSON string to POST.
-     * @param cfg         The ConfigManager, providing endpoint URL, timeout, retry limit, and debug flag.
+     * @param plugin      Your main JavaPlugin instance
+     * @param jsonPayload The JSON string to POST
+     * @param cfg         ConfigManager (endpoint-url, timeout-ms, retry-limit, debug)
      */
-    public static void postJson(String jsonPayload, ConfigManager cfg) {
-        // Initialize the shared client if not already done:
+    public static void postJson(JavaPlugin plugin, String jsonPayload, ConfigManager cfg) {
+        ensureClient(cfg);
+        // Kick off first attempt immediately (off the main thread)
+        Bukkit.getScheduler()
+              .runTaskAsynchronously(plugin, () -> attemptPost(plugin, jsonPayload, cfg, 1));
+    }
+
+    private static void ensureClient(ConfigManager cfg) {
         if (sharedClient == null) {
             synchronized (HttpPostTask.class) {
                 if (sharedClient == null) {
@@ -39,8 +42,12 @@ public class HttpPostTask {
                 }
             }
         }
+    }
 
-        // Build the HTTP POST request once
+    private static void attemptPost(JavaPlugin plugin,
+                                    String jsonPayload,
+                                    ConfigManager cfg,
+                                    int attempt) {
         HttpRequest request = HttpRequest.newBuilder()
             .uri(URI.create(cfg.getEndpointUrl()))
             .timeout(Duration.ofMillis(cfg.getTimeoutMs()))
@@ -48,54 +55,30 @@ public class HttpPostTask {
             .POST(HttpRequest.BodyPublishers.ofString(jsonPayload))
             .build();
 
-        int attempts = 0;
-        int maxAttempts = Math.max(cfg.getRetryLimit(), 1);
-        boolean success = false;
-
-        while (attempts < maxAttempts) {
-            attempts++;
-            try {
-                HttpResponse<String> response = sharedClient.send(request, HttpResponse.BodyHandlers.ofString());
-                int status = response.statusCode();
-                if (status >= 200 && status < 300) {
-                    // Success – exit early
-                    success = true;
-                    break;
-                } else {
-                    // Non-2xx response: log a warning and retry
-                    String warnMsg = String.format(
-                        "HTTP POST returned status %d (attempt %d/%d) for endpoint %s",
-                        status, attempts, maxAttempts, cfg.getEndpointUrl()
-                    );
-                    FileLogger.getInstance().logError(warnMsg, null, cfg.isDebug());
-                }
-            } catch (IOException | InterruptedException e) {
-                // Network or interruption error: log and retry
-                String errMsg = String.format(
-                    "Exception during HTTP POST (attempt %d/%d) to %s",
-                    attempts, maxAttempts, cfg.getEndpointUrl()
-                );
-                FileLogger.getInstance().logError(errMsg, e, cfg.isDebug());
+        try {
+            HttpResponse<String> response = sharedClient.send(request, HttpResponse.BodyHandlers.ofString());
+            int code = response.statusCode();
+            if (code < 200 || code >= 300) {
+                scheduleRetry(plugin, jsonPayload, cfg, attempt);
             }
-
-            // If not the last attempt, wait briefly before retrying
-            if (attempts < maxAttempts) {
-                try {
-                    Thread.sleep(500L); // 500ms pause between retries
-                } catch (InterruptedException ie) {
-                    // Restore interrupt flag and break out
-                    Thread.currentThread().interrupt();
-                    break;
-                }
+        } catch (Exception e) {
+            if (cfg.isDebug()) {
+                e.printStackTrace();
             }
+            scheduleRetry(plugin, jsonPayload, cfg, attempt);
         }
+    }
 
-        if (!success) {
-            String finalMsg = String.format(
-                "All %d HTTP POST attempts failed for endpoint %s",
-                maxAttempts, cfg.getEndpointUrl()
-            );
-            FileLogger.getInstance().logError(finalMsg, null, cfg.isDebug());
+    private static void scheduleRetry(JavaPlugin plugin,
+                                      String jsonPayload,
+                                      ConfigManager cfg,
+                                      int attempt) {
+        if (attempt < cfg.getRetryLimit()) {
+            // retry after 10 ticks (~500ms)
+            Bukkit.getScheduler()
+                  .runTaskLaterAsynchronously(plugin,
+                                              () -> attemptPost(plugin, jsonPayload, cfg, attempt + 1),
+                                              10L);
         }
     }
 }
