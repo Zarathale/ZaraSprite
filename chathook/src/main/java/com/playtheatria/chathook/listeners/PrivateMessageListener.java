@@ -58,8 +58,6 @@ public class PrivateMessageListener implements Listener {
         fileLogger.logToUserFile(sender.getName(), json, "SENT");
         HttpPostTask.postJson(plugin, json, cfg);
 
-        // prevent it showing in console/other players if you like:
-        event.setCancelled(cfg.isCancelOnRelay());
     }
 
     private String escapeJson(String raw) {
