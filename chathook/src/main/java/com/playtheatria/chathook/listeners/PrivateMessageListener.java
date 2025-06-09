@@ -7,11 +7,12 @@ import com.playtheatria.chathook.utils.HttpPostTask;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 
+import io.papermc.paper.event.player.AsyncChatEvent;
+import io.papermc.paper.event.player.AsyncChatEvent.ChatType;
+
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
-import org.bukkit.event.player.AsyncChatEvent;
-import org.bukkit.event.player.AsyncChatEvent.ChatType;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.time.Instant;
@@ -36,18 +37,16 @@ public class PrivateMessageListener implements Listener {
     @EventHandler
     public void onPlayerPrivateMessage(AsyncChatEvent event) {
         // 1) Only process true DMs
-        if (event.getMessageType() != ChatType.PRIVATE_MESSAGE) return;
-        // 2) Make sure the DM is addressed to our bot
-        boolean toBot = event.getRecipients().stream()
-            .anyMatch(r -> r.getName().equalsIgnoreCase(cfg.getBotName()));
-        if (!toBot) return;
+        if (event.chatType() != ChatType.PRIVATE_MESSAGE) return;
+        // 2) Ensure it’s addressed to our bot
+        if (!event.recipient().getName().equalsIgnoreCase(cfg.getBotName())) return;
 
-        // 3) Extract sender + plain‐text message
-        Player sender = event.getPlayer();
+        // 3) Extract sender + plain‐text
+        Player sender = event.player();
         Component comp = event.message();
         String message = PlainTextComponentSerializer.plainText().serialize(comp);
 
-        // 4) Build JSON payload
+        // 4) Build JSON
         String id        = UUID.randomUUID().toString();
         String timestamp = Instant.now().toString();
         String json = String.format(
@@ -55,8 +54,8 @@ public class PrivateMessageListener implements Listener {
             id, sender.getName(), escapeJson(message), timestamp
         );
 
-        // 5) Log to user‐file and forward via HTTP
-        fileLogger.logToUserFile(sender.getName(), json, "SENT");  // uses singleton instance :contentReference[oaicite:3]{index=3}
+        // 5) Log & forward
+        fileLogger.logToUserFile(sender.getName(), json, "SENT");
         HttpPostTask.postJson(plugin, json, cfg);
     }
 
