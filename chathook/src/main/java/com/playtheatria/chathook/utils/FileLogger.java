@@ -65,11 +65,12 @@ public class FileLogger {
      * Initialize the singleton FileLogger. Must be called once in onEnable().
      *
      * @param dataFolder The plugin’s data folder (e.g., plugins/Chathook)
-     * @param debugMode  True to include stack traces in the error log
+     * @param logFolderName The subfolder name under dataFolder where logs will be stored (e.g., "logs").     * @param debugMode  True to include stack traces in the error log
      * @param maxBytes   Max size (in bytes) of error.log before rotating
      * @param fileCount  Number of rolled files to keep (oldest overwritten)
      */
     public static void initialize(File dataFolder,
+                                  File logFolderName,
                                   boolean debugMode,
                                   int maxBytes,
                                   int fileCount) {
