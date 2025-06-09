@@ -68,17 +68,19 @@ public class FileLogger {
  * @param retainDays    number of days’ worth of logs to keep
  * @param maxSizeMb     maximum size per log file (in MB)
  */
-public static void initialize(
-    File dataFolder,
-    String logFolderName,
-    boolean debug,
-    int retainDays,
-    int maxSizeMb
-) {
-    File logsDir = new File(dataFolder, logFolderName);
-    logsDir.mkdirs();
-    // …existing setup using debug, retainDays, maxSizeMb…
-}
+    public static void initialize(
+        JavaPlugin pluginInstance,
+        File dataFolder,
+        String logFolderName,
+        boolean debugMode,
+        int maxBytesPerFile,
+        int maxFileCount
+    ) {
+        File logsDir = new File(dataFolder, logFolderName);
+        logsDir.mkdirs();
+        // create & store the singleton
+        instance = new FileLogger(pluginInstance, logsDir, debugMode, maxBytesPerFile, maxFileCount);
+    }
 
     /** 
      * Retrieve the singleton instance (after having called initialize()). 
