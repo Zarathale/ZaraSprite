@@ -1,4 +1,4 @@
-<!-- pom.xml (compile against Spigot API + Adventure) -->
+<!-- pom.xml (compile against Paper API + Adventure plain serializer) -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
@@ -18,12 +18,26 @@
     <maven.compiler.target>17</maven.compiler.target>
   </properties>
 
-  <repositories>
+    <repositories>
     <repository>
-      <id>spigot-repo</id>
-      <url>https://hub.spigotmc.org/nexus/content/repositories/snapshots/</url>
-      <snapshots><enabled>true</enabled></snapshots>
-      <releases><enabled>false</enabled></releases>
+      <id>papermc</id>
+      <url>https://repo.papermc.io/repository/maven-public/</url>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+      <snapshots>
+        <enabled>true</enabled>
+      </snapshots>
+    </repository>
+    <repository>
+      <id>mojang</id>
+      <url>https://libraries.minecraft.net/</url>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
     </repository>
   </repositories>
 
@@ -35,7 +49,7 @@
       <version>2.9.0</version>
     </dependency>
 
-    <!-- PaperAPI for AsyncChatEvent & ChatType & Adventure -->
+    <!-- Paper API (provided by your Paper server at runtime) -->
     <dependency>
       <groupId>io.papermc.paper</groupId>
       <artifactId>paper-api</artifactId>
@@ -43,6 +57,13 @@
       <scope>provided</scope>
     </dependency>
 
+    <!-- Adventure plain text serializer (provided by server) -->
+    <dependency>
+      <groupId>net.kyori</groupId>
+      <artifactId>adventure-text-serializer-plain</artifactId>
+      <version>4.21.0</version>
+      <scope>provided</scope>
+    </dependency>
   </dependencies>
 
   <build>
