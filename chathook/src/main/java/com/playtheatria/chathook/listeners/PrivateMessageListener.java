@@ -10,15 +10,15 @@ import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
-import org.bukkit.event.player.AsyncChatEvent;
-import org.bukkit.event.player.AsyncChatEvent.ChatType;
+import org.bukkit.event.chat.AsyncChatEvent;
+import org.bukkit.event.chat.AsyncChatEvent.ChatType;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.time.Instant;
 import java.util.UUID;
 
 /**
- * Listens for true private-message events (DMs) to our bot and forwards them.
+ * Listens for private‐message (DM) events to our bot and forwards them.
  */
 public class PrivateMessageListener implements Listener {
     private final JavaPlugin plugin;
@@ -31,17 +31,19 @@ public class PrivateMessageListener implements Listener {
 
     @EventHandler
     public void onPlayerPrivateMessage(AsyncChatEvent event) {
-        // Only handle genuine DMs
+        // 1) Only process real DMs
         if (event.getMessageType() != ChatType.PRIVATE_MESSAGE) return;
-        // Ensure recipient is our bot
+        // 2) Make sure the DM is to our bot
         boolean toBot = event.getRecipients().stream()
-            .anyMatch(recipient -> recipient.getName().equalsIgnoreCase(cfg.getBotName()));
+            .anyMatch(r -> r.getName().equalsIgnoreCase(cfg.getBotName()));
         if (!toBot) return;
 
+        // 3) Extract sender + text
         Player sender = event.getPlayer();
         Component comp = event.message();
         String message = PlainTextComponentSerializer.plainText().serialize(comp);
 
+        // 4) Build JSON
         String timestamp = Instant.now().toString();
         String id        = UUID.randomUUID().toString();
         String json = String.format(
@@ -49,9 +51,8 @@ public class PrivateMessageListener implements Listener {
             id, sender.getName(), escapeJson(message), timestamp
         );
 
-        // Static logger
+        // 5) Log and forward
         FileLogger.logInfo(sender.getName(), message);
-        // Forward the DM
         HttpPostTask.postJson(plugin, json, cfg);
     }
 
