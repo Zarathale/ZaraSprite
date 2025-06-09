@@ -1,7 +1,8 @@
-<!-- pom.xml (updated to compile against Spigot API 1.21.4) -->
+<!-- pom.xml -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                             https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>com.playtheatria</groupId>
@@ -10,7 +11,7 @@
   <packaging>jar</packaging>
 
   <name>chathook</name>
-  <description>Chathook plugin for Theatria (compile against Spigot API)</description>
+  <description>Chathook plugin for Theatria (compile against Spigot API + Adventure)</description>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -28,18 +29,32 @@
   </repositories>
 
   <dependencies>
-    <!-- Gson for JSON serialization -->
+    <!-- JSON support -->
     <dependency>
       <groupId>com.google.code.gson</groupId>
       <artifactId>gson</artifactId>
       <version>2.9.0</version>
     </dependency>
 
-    <!-- Spigot API for Bukkit event classes -->
+    <!-- Bukkit API (provided at runtime by Paper) -->
     <dependency>
       <groupId>org.spigotmc</groupId>
       <artifactId>spigot-api</artifactId>
       <version>1.21.4-R0.1-SNAPSHOT</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- Adventure text API (components) -->
+    <dependency>
+      <groupId>net.kyori</groupId>
+      <artifactId>adventure-text-api</artifactId>
+      <version>4.16.0</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>net.kyori</groupId>
+      <artifactId>adventure-text-serializer-plain</artifactId>
+      <version>4.16.0</version>
       <scope>provided</scope>
     </dependency>
   </dependencies>
@@ -60,8 +75,7 @@
         <version>3.10.1</version>
         <configuration>
           <encoding>${project.build.sourceEncoding}</encoding>
-          <source>${maven.compiler.source}</source>
-          <target>${maven.compiler.target}</target>
+          <release>${maven.compiler.target}</release>
         </configuration>
       </plugin>
       <plugin>
