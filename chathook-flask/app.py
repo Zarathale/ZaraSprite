@@ -204,6 +204,14 @@ if __name__ == "__main__":
     # Ensure data folder + tables exist before starting
     init_db()
 
-    # Use Waitress to serve on 0.0.0.0:5000
+    # Print all registered routes for verification
+    print("Registered routes:")
+    for rule in app.url_map.iter_rules():
+        print(f"  {rule}")
+
+    # Log that app is starting
+    print("Starting chathook-flask on http://0.0.0.0:5000 ...")
+
+    # Use Waitress to serve publicly
     from waitress import serve
     serve(app, host="0.0.0.0", port=5000)
