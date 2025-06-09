@@ -259,3 +259,22 @@ This project connects the Minecraft server **Theatria** with a GPT-powered assis
    - Add a diagram file under `/diagrams/architecture.md` (Mermaid or image) showing the full message flow from Minecraft → Flask → Node → GPT → Minecraft.
 
 ---
+
+## 6. AI Accuracy & Player Trust
+
+We take AI reliability seriously. ZaraSprite is designed to be helpful, honest, and low-risk. Since GPT models can sometimes "hallucinate" (generate plausible but incorrect answers), we’ve implemented safeguards to build and maintain trust.
+
+### Safeguards in Place
+
+- **Structured Prompts**: GPT is prompted to be humble and avoid guessing.  
+- **Context-Aware Sessions**: Recent conversation history is included in each prompt.  
+- **Safe Fallbacks**: On error or uncertainty, ZaraSprite replies with a neutral fallback message.  
+- **Logged Summaries**: Session summaries are generated and logged for admin review.  
+- **Command Boundaries**: ZaraSprite can’t execute server-impacting commands.
+
+### Building Trust with the Community
+
+- **Honest Identity**: Clearly identified as a bot. It never pretends to be staff or a player.  
+- **Fully Logged**: All interactions are saved to logs for review and audit.  
+- **No Unsolicited Messages**: ZaraSprite only responds when messaged directly.  
+- **Community Feedback Loops**: Admins help refine prompt templates and behavior over time.
