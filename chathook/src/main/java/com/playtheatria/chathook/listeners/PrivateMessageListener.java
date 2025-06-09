@@ -4,22 +4,18 @@ import com.playtheatria.chathook.utils.ConfigManager;
 import com.playtheatria.chathook.utils.FileLogger;
 import com.playtheatria.chathook.utils.HttpPostTask;
 
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
-
-import io.papermc.paper.event.player.AsyncChatEvent;
-import io.papermc.paper.event.player.AsyncChatEvent.ChatType;
-
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.time.Instant;
 import java.util.UUID;
 
 /**
- * Listens for private‐message (DM) events to our bot and forwards them.
+ * Listens for /msg or /tell directed at our bot name and
+ * forwards them to the external Flask endpoint.
  */
 public class PrivateMessageListener implements Listener {
     private final JavaPlugin plugin;
@@ -35,28 +31,35 @@ public class PrivateMessageListener implements Listener {
     }
 
     @EventHandler
-    public void onPlayerPrivateMessage(AsyncChatEvent event) {
-        // 1) Only process true DMs
-        if (event.chatType() != ChatType.PRIVATE_MESSAGE) return;
-        // 2) Ensure it’s addressed to our bot
-        if (!event.recipient().getName().equalsIgnoreCase(cfg.getBotName())) return;
+    public void onPlayerPrivateMessage(PlayerCommandPreprocessEvent event) {
+        String raw = event.getMessage();             // e.g. "/msg ZaraSprite hello"
+        String[] parts = raw.split(" ", 3);
+        if (parts.length < 3) return;                // not enough pieces
 
-        // 3) Extract sender + plain‐text
-        Player sender = event.player();
-        Component comp = event.message();
-        String message = PlainTextComponentSerializer.plainText().serialize(comp);
+        String cmd = parts[0].substring(1).toLowerCase();
+        if (!cmd.equals("msg") && !cmd.equals("tell")) return;
 
-        // 4) Build JSON
+        String target = parts[1];
+        if (!target.equalsIgnoreCase(cfg.getBotName())) return;
+
+        // we’ve confirmed: /msg ZaraSprite <content>
+        String content = parts[2];
+        Player sender = event.getPlayer();
+
+        // build JSON payload
         String id        = UUID.randomUUID().toString();
         String timestamp = Instant.now().toString();
         String json = String.format(
             "{\"id\":\"%s\",\"player\":\"%s\",\"message\":\"%s\",\"timestamp\":\"%s\"}",
-            id, sender.getName(), escapeJson(message), timestamp
+            id, sender.getName(), escapeJson(content), timestamp
         );
 
-        // 5) Log & forward
+        // log to file and forward
         fileLogger.logToUserFile(sender.getName(), json, "SENT");
         HttpPostTask.postJson(plugin, json, cfg);
+
+        // prevent it showing in console/other players if you like:
+        event.setCancelled(cfg.isCancelOnRelay());
     }
 
     private String escapeJson(String raw) {
