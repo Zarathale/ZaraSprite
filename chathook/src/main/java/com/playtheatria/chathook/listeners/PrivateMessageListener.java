@@ -10,8 +10,8 @@ import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
-import org.bukkit.event.chat.AsyncChatEvent;
-import org.bukkit.event.chat.AsyncChatEvent.ChatType;
+import org.bukkit.event.player.AsyncChatEvent;
+import org.bukkit.event.player.AsyncChatEvent.ChatType;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.time.Instant;
