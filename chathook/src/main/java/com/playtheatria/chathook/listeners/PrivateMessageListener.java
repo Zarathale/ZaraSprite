@@ -4,14 +4,15 @@ import com.playtheatria.chathook.utils.ConfigManager;
 import com.playtheatria.chathook.utils.HttpPostTask;
 import com.playtheatria.chathook.utils.FileLogger;
 
+import io.papermc.paper.event.player.AsyncChatEvent;
+import org.bukkit.event.chat.ChatType;
+
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
-import org.bukkit.event.player.AsyncChatEvent;
-import org.bukkit.event.player.AsyncChatEvent.ChatType;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.time.Instant;
@@ -30,12 +31,12 @@ public class PrivateMessageListener implements Listener {
     }
 
     @EventHandler
-    public void onAsyncChat(AsyncChatEvent event) {
+    public void onPlayerPrivateMessage(AsyncChatEvent event) {
         // Only handle genuine DMs
         if (event.getMessageType() != ChatType.PRIVATE_MESSAGE) return;
         // Ensure recipient is our bot
         boolean toBot = event.getRecipients().stream()
-                          .anyMatch(p -> p.getName().equalsIgnoreCase(cfg.getBotName()));
+            .anyMatch(recipient -> recipient.getName().equalsIgnoreCase(cfg.getBotName()));
         if (!toBot) return;
 
         Player sender = event.getPlayer();
