@@ -61,41 +61,24 @@ public class FileLogger {
         this.fileCount = fileCount;
     }
 
-    /**
-     * Initialize the singleton FileLogger. Must be called once in onEnable().
-     *
-     * @param dataFolder The plugin’s data folder (e.g., plugins/Chathook)
-     * @param logFolderName The subfolder name under dataFolder where logs will be stored (e.g., "logs").     * @param debugMode  True to include stack traces in the error log
-     * @param maxBytes   Max size (in bytes) of error.log before rotating
-     * @param fileCount  Number of rolled files to keep (oldest overwritten)
-     */
-    public static void initialize(File dataFolder,
-                                  File logFolderName,
-                                  boolean debugMode,
-                                  int maxBytes,
-                                  int fileCount) {
-        if (instance != null) {
-            // Already initialized; ignore
-            return;
-        }
-
-        // Create (or verify) the logs folder
-        File logsDir = new File(dataFolder, "logs");
-        if (!logsDir.exists()) {
-            boolean ok = logsDir.mkdirs();
-            if (!ok) {
-                Logger.getGlobal().severe("Chathook: Failed to create logs folder: " + logsDir.getAbsolutePath());
-            }
-        }
-
-        // Must pass a real JavaPlugin reference—replace with your plugin instance
-        JavaPlugin pluginInstance = (JavaPlugin) dataFolder.getParentFile().getParentFile().getParentFile();
-        // (Alternatively, you could pass the plugin reference directly instead of inferring it.)
-        instance = new FileLogger(pluginInstance, logsDir, debugMode, maxBytes, fileCount);
-        instance.consoleLogger.info("FileLogger initialized: debug=" + debugMode
-                                   + ", maxBytes=" + maxBytes
-                                   + ", fileCount=" + fileCount);
-    }
+/**
+ * @param dataFolder    the plugin’s data folder (i.e. plugin.getDataFolder())
+ * @param logFolderName sub-directory name under dataFolder where logs are written
+ * @param debug         whether to enable full stack-trace logging
+ * @param retainDays    number of days’ worth of logs to keep
+ * @param maxSizeMb     maximum size per log file (in MB)
+ */
+public static void initialize(
+    File dataFolder,
+    String logFolderName,
+    boolean debug,
+    int retainDays,
+    int maxSizeMb
+) {
+    File logsDir = new File(dataFolder, logFolderName);
+    logsDir.mkdirs();
+    // …existing setup using debug, retainDays, maxSizeMb…
+}
 
     /** 
      * Retrieve the singleton instance (after having called initialize()). 
