@@ -1,174 +1,143 @@
-# ZaraSprite Multi-Agent Architecture
+# ZaraSprite Tutorial Assistant – Multi-Agent Architecture  
+*Guiding players through Theatria, one Trailstones lesson at a time.*
 
-ZaraSprite is an in-game assistant for Theatria, powered by a modular, multi-agent system. Each agent focuses on a specific domain of interaction—enabling ZaraSprite to maintain stateful, responsive, and friendly conversations across multiple players while also demonstrating actions, navigating in-game, and enforcing safety checks on its answers.
-
----
-
-## 🧠 Agent-Based Architecture Overview
-
-Each component listed below is designed to operate as a distinct "agent"—independently responsible for a specific part of ZaraSprite's behavior. Agents communicate through a shared database, task queues, or function/event calls depending on runtime implementation.
+ZaraSprite is an **in-game tutorial assistant** for the public Minecraft server **Theatria**.  
+Its core mission is to **teach**—delivering small, interactive lessons (called **Trailstones**) while also handling everyday questions about ranks, commands, the economy, and more.  
+A **modular multi-agent system** keeps ZaraSprite responsive, knowledgeable, and able to move around the world to demonstrate concepts live.
 
 ---
 
-### 1. 📨 InputHandlerAgent
-**Purpose**: Listens for all messages directed at or mentioning ZaraSprite.
+## 🧠 Architecture at a Glance
 
-- Triggers on:
-  - DMs to ZaraSprite
-  - Mentions in global chat
-- Writes new messages to the `inbound_messages` table
-- Notifies `SessionManagerAgent` of activity
+| Layer | What it Does |
+|-------|--------------|
+| **Agents** | Independent workers—each owns one piece of ZaraSprite’s behavior. |
+| **Shared Utilities** | Cross-cutting helpers (database, logging, config). |
+| **SQLite + Event Bus** | Lightweight persistence and internal messaging. |
+| **Minecraft Runtime Hooks** | Paper 1.20+ events for chat, DMs, player actions, and movement. |
 
----
-
-### 2. 💬 SessionManagerAgent
-**Purpose**: Tracks and manages ongoing player sessions.
-
-- Starts and ends sessions per player
-- Handles session escalation (e.g. player requests Zara to visit them)
-- Manages:
-  - Session expiration
-  - Queueing of movement tasks
-  - Notifies players of session state
+Agents exchange tasks via a small **in-memory event bus** or by writing rows to **SQLite tables**.  
+This keeps concerns separate yet lets every part of ZaraSprite “see” new data quickly.
 
 ---
 
-### 3. 🧭 IntentAgent
-**Purpose**: Infers the player's objective from chat content.
+## 🗺️ Tutorial Module System – *Trailstones*
 
-- Extracts intent (e.g., "ask question", "request help", "request tp")
-- Maps to appropriate actions/modules (e.g., Movement, Wiki Lookup, Guidance)
-- Passes intent to the appropriate agent(s)
+| Feature | Details |
+|---------|---------|
+| **Goal** | Teach one focused skill (e.g., “Buy an item from a ChestDB shop”). |
+| **Structure** | Ordered steps → checkpoints → completion flag. |
+| **Triggers** | Player asks, clicks hint, reaches a tag-matched event, or ZaraSprite recommends it. |
+| **Interactivity** | Pauses for in-world actions, quizzes, or chat responses. |
+| **Adaptation** | Checks player verbosity preference & stores progress for resuming later. |
 
----
-
-### 4. 🎭 PersonalityAgent
-**Purpose**: Styles ZaraSprite’s tone and delivery.
-
-- Adds personality, consistent speech patterns, warmth
-- Adjusts message length and clarity based on audience or complexity
-- Wraps final GPT output in ZaraSprite’s voice
-
----
-
-### 5. 🧍 MovementManagerAgent
-**Purpose**: Handles ZaraSprite's physical location and navigation.
-
-- Maintains a teleport queue
-- Responds to `follow`, `come to`, `wait here`, or `cancel` commands
-- Reports current activity to other agents
-- Manages “busy” state and estimates
+> **Example Trailstones**  
+> * `shop-buy` – Buy from a player shop  
+> * `shop-sell` – Create & configure a ChestDB shop sign  
+> * `sleep`   – Understand sleeping rules in mining worlds  
+> * `shrine`  – Complete a daily Shrine quest  
 
 ---
 
-### 6. 💡 ResponseEngineAgent
-**Purpose**: Orchestrates prompt construction, GPT interaction, and quality control.
+## 🔧 Agents (Detailed)
 
-- Includes:
-  - `PromptBuilder`: Builds prompt using session history + intent
-  - `KnowledgeChecker`: Optionally checks against Theatria Wiki or internal rules
-  - `ResponseReviewer`: Filters or rewrites output before delivery
-- Sends styled message to `CommunicatorAgent`
+| # | Agent | Core Responsibility |
+|---|-------|---------------------|
+| 1 | **📨 InputHandlerAgent** | Listens for DMs & mentions → writes to `inbound_messages`. |
+| 2 | **💬 SessionManagerAgent** | Opens/closes sessions, manages expirations & escalations, notifies players. |
+| 3 | **🧭 IntentAgent** | Classifies each message (tutorial request, question, TP, etc.) and routes tasks. |
+| 4 | **🎭 PersonalityAgent** *(opt.)* | Wraps raw GPT text in ZaraSprite’s warm, concise voice. |
+| 5 | **🧍 MovementManagerAgent** | Teleports, follows, queues movement, tracks “busy” state. |
+| 6 | **💡 ResponseEngineAgent** | Builds GPT prompts, checks wiki facts, reviews & filters final output. |
+| 7 | **📚 WikiLookupAgent** | Searches the Theatria Wiki; returns snippets or links. |
+| 8 | **🗺️ GuidanceAgent** (*Trailstones*) | Launches, pauses, resumes tutorial modules; emits tutorial prompts & hints. |
+| 9 | **🥰 MemoryManagerAgent** | Stores long-term player prefs (verbosity, completed lessons, past questions). |
+|10 | **⏰ SchedulerAgent** | Runs timed jobs—queue updates, session timeouts, periodic nudges. |
+|11 | **📢 CommunicatorAgent** | Sends all outbound `/tell` messages, queue notices, and tutorial steps. |
 
----
-
-### 7. 📚 WikiLookupAgent
-**Purpose**: Retrieves info from the Theatria wiki or documentation.
-
-- Uses search or predefined topics
-- Optional fallback when GPT yields uncertain results
-- Can be referenced by `ResponseEngineAgent` or `IntentAgent`
-
----
-
-### 8. 🗺️ GuidanceAgent *(New!)*
-**Codename**: "Trailstones"  
-**Purpose**: Delivers pre-built interactive tutorials or demos.
-
-- Each "Trailstone" is a guided module:
-  - Scripted multi-step lesson
-  - Includes pauses, checkpoints, and hints
-  - Reacts to:
-    - Player inputs (chat, command)
-    - In-world actions (e.g. block placement, location changes)
-- Supports:
-  - Stopping, restarting, resuming modules
-  - Encouragement nudges
-  - “I’m stuck” helper logic
+> **Future Agents**  
+> * **EmotionAgent** – adjust tone for urgency, celebration, or confusion  
+> * **SafetyAgent** – scan messages for risky or prohibited requests  
 
 ---
 
-### 9. 🕰️ SchedulerAgent
-**Purpose**: Manages timing, retry intervals, and polling tasks.
+## 📚 Conversational Knowledge Domains
 
-- Oversees async loops (e.g., polling new messages, checking queue)
-- Times out expired sessions or teleport requests
-- Sends periodic reminders when needed
-
----
-
-### 10. 📢 CommunicatorAgent
-**Purpose**: Sends all outbound messages or updates to players.
-
-- Handles:
-  - `/tell` messages
-  - Session updates
-  - Queue position reminders
-  - Guided module prompts or nudges
+| Domain | ZaraSprite Must… | Example Follow-ups |
+|--------|------------------|--------------------|
+| **Ranks** | Identify player’s rank & perks; outline upgrade steps. | “Want a breakdown of costs for the next rank?” |
+| **Commands** | Provide syntax, examples, cooldowns. | “Would `/sethome` help here?” |
+| **Economy** | Explain Denarii sources & sinks, market trends. | “Curious where ores sell best right now?” |
 
 ---
 
-## 🔧 Shared Utilities
+## 🔗 Shared Utilities
 
-| Utility         | Purpose |
-|----------------|---------|
-| `DatabaseManager` | Read/write to shared SQLite tables |
-| `Logger`          | Central logging across agents |
-| `ConfigManager`   | Loads personality settings, timing rules, etc |
-| `EventBus` (optional) | In-memory queue for internal task handoff |
+| Utility | Purpose |
+|---------|---------|
+| `DatabaseManager` | Single SQLite interface for agents. |
+| `Logger` | Static logging (aligns with **FileLogger** conventions). |
+| `ConfigManager` | Loads timeouts, endpoint URLs, personality toggles. |
+| `EventBus` | In-memory publish/subscribe for fast task hand-off. |
 
 ---
 
 ## 🧪 Example Flows
 
-### 📦 Flow #1: Player asks ZaraSprite to teleport
+### 1 ️⃣ Guided Shop Tour (*Trailstone*)
 
-> **Player**: `ZaraSprite can you come here?`
-
-1. `InputHandlerAgent` logs message.
-2. `SessionManagerAgent` sees this is an ongoing session.
-3. `IntentAgent` identifies a teleport request.
-4. `MovementManagerAgent` adds the player to TP queue.
-5. If Zara is busy, `CommunicatorAgent` replies:  
-   _“I’m helping someone else at the moment! You’re next in line 🧭 I’ll keep you posted!”_
-6. Scheduler triggers regular queue updates.
-7. Once Zara is free, `MovementManagerAgent` executes the teleport and updates session status.
-
----
-
-### 💰 Flow #2: Player asks how to earn Denarii
-
-> **Player**: `ZaraSprite how do I earn Denarii?`
-
-1. `InputHandlerAgent` logs the message.
-2. `SessionManagerAgent` confirms or creates a session.
-3. `IntentAgent` identifies an economic/help request.
-4. `ResponseEngineAgent`:
-    - Builds prompt from session history
-    - Queries wiki via `WikiLookupAgent` if needed
-    - Gets GPT response:  
-      _“There are three main ways to earn Denarii: completing jobs, trading with other players, and selling rare resources. Would you like a quick guide on the most profitable methods right now?”_
-5. `PersonalityAgent` adjusts tone to make it warm and playful.
-6. `CommunicatorAgent` delivers the message in-game.
+1. **Player** → “ZaraSprite, explain player shops to SirMonkeyBoy.”  
+2. **InputHandler** logs the message.  
+3. **SessionManager** opens/updates session.  
+4. **IntentAgent** detects *tutorial* request (`shop-tour`).  
+5. **MovementManager** queues `/warp market`.  
+6. **Communicator** → “Meet me at /warp market and we’ll start!”  
+7. **MemoryManager** asks for verbosity (if unknown).  
+8. **GuidanceAgent** runs `shop-tour` Trailstones lesson:  
+   - step messages, in-world pauses, question checks.  
+9. On completion, **MemoryManager** records lesson; **Communicator** suggests next topics.
 
 ---
 
-## 🌱 Future Expansion Ideas
+### 2 ️⃣ Quick Question (Non-tutorial)
 
-- **MemoryManagerAgent** for long-term player facts/preferences
-- **SafetyAgent** to detect risky behavior or filter inappropriate requests
-- **EmotionAgent** to adapt tone further based on context (e.g., urgent, celebratory)
+> **Player**: “ZaraSprite how do I earn Denarii?”
+
+1. Input → Session → Intent (`economy-question`).  
+2. ResponseEngine builds prompt, queries Wiki.  
+3. Communicator sends concise answer + optional Trailstones “shrine” or “jobs” suggestion.  
+4. MemoryManager logs topic for future follow-up.
 
 ---
 
-Happy pathfinding with ZaraSprite 🧡
+### 3 ️⃣ Teleport Request
+
+> **Player**: “ZaraSprite can you come here?”
+
+1. Intent (`tp-request`) → Movement queue.  
+2. Communicator updates player on queue position.  
+3. Scheduler emits periodic “you’re next” notices.  
+4. MovementManager executes TP when idle.
+
+---
+
+## 🌱 Planned Enhancements
+
+* **Refined EmotionAgent** – tone-aware prompts (“Congrats!” vs. “Let’s fix that”).  
+* **SafetyAgent** – policy checks for exploits or personal data.  
+* **Plugin Metrics** – anonymous usage to improve tutorial coverage.  
+
+---
+
+### Contributing
+
+Follow the project’s **naming & static utility guidelines**:
+
+* Class names match module (e.g., `Chathook.java`).  
+* All logging via `FileLogger.logInfo(...)` static calls.  
+* Keep each class < 200 lines; break out utilities when needed.  
+* See `/chathook/CODING_GUIDELINES.md` for static vs. instance advice.
+
+---
+
+*Happy learning and pathfinding with ZaraSprite 🧡*
