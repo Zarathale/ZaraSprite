@@ -59,10 +59,6 @@ This keeps concerns separate yet lets every part of ZaraSprite “see” new dat
 |10 | **⏰ SchedulerAgent** | Runs timed jobs—queue updates, session timeouts, periodic nudges. |
 |11 | **📢 CommunicatorAgent** | Sends all outbound `/tell` messages, queue notices, and tutorial steps. |
 
-> **Future Agents**  
-> * **EmotionAgent** – adjust tone for urgency, celebration, or confusion  
-> * **EconomyAgent** - polls external database for chestshop listings (Player, item, sell/buy, price, location) can review that data and summarize trends.
-> * **McMMOAgent** - aware of player McMMO levels, knows the McMMO wiki, and can explain McMMO skills, abilities, levels, and other related topics. 
 ---
 
 ## 📚 Conversational Knowledge Domains
@@ -125,11 +121,12 @@ This keeps concerns separate yet lets every part of ZaraSprite “see” new dat
 
 ---
 
-## 🌱 Planned Enhancements
+## 🌱 Future Enhancements
 
-* **Refined EmotionAgent** – tone-aware prompts (“Congrats!” vs. “Let’s fix that”).  
-* **SafetyAgent** – policy checks for exploits or personal data.  
-* **Plugin Metrics** – anonymous usage to improve tutorial coverage.  
+> * **Plugin Metrics** –
+> * **EmotionAgent** – adjust tone for urgency, celebration, or confusion: tone-aware prompts (“Congrats!” vs. “Let’s fix that”)
+> * **EconomyAgent** - polls external database for chestshop listings (Player, item, sell/buy, price, location) can review that data and summarize trends.
+> * **McMMOAgent** - aware of player McMMO levels, knows the McMMO wiki, and can explain McMMO skills, abilities, levels, and other related topics. 
 
 ---
 
@@ -140,7 +137,6 @@ Follow the project’s **naming & static utility guidelines**:
 * Class names match module (e.g., `Chathook.java`).  
 * All logging via `FileLogger.logInfo(...)` static calls.  
 * Keep each class < 200 lines; break out utilities when needed.  
-* See `/chathook/CODING_GUIDELINES.md` for static vs. instance advice.
 
 ---
 
