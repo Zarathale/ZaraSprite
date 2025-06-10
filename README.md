@@ -25,17 +25,20 @@ This keeps concerns separate yet lets every part of ZaraSprite “see” new dat
 
 | Feature | Details |
 |---------|---------|
-| **Goal** | Teach one focused skill (e.g., “Buy an item from a ChestDB shop”). |
+| **Goal** | Teach one focused skill (e.g., “Buy an item from a shop”). |
 | **Structure** | Ordered steps → checkpoints → completion flag. |
-| **Triggers** | Player asks, clicks hint, reaches a tag-matched event, or ZaraSprite recommends it. |
-| **Interactivity** | Pauses for in-world actions, quizzes, or chat responses. |
-| **Adaptation** | Checks player verbosity preference & stores progress for resuming later. |
+| **Triggers** | Player asks, reaches a tag-matched event such as achieving a certain rank or completing an accomplishment, or ZaraSprite recommends it. |
+| **Interactivity** | Pauses for in-world actions or chat responses. (e.g. wait while a player purchases an item or until a player messages to continue) |
+| **Adaptation** | Checks player verbosity preference. Stores progress for resuming later. |
 
 > **Example Trailstones**  
-> * `shop-buy` – Buy from a player shop  
-> * `shop-sell` – Create & configure a ChestDB shop sign  
-> * `sleep`   – Understand sleeping rules in mining worlds  
-> * `shrine`  – Complete a daily Shrine quest  
+> * `chestshop-buy` – Buy from a player shop  
+> * `chestshop-sell` – Sell to a player shop
+> * `chestshop-create` - Create a chest shop of your own
+> * `shrine-quests` – Explain daily Shrine quests
+> * `tour-smittiville` - Get a guided tour of Smittiville 
+> * `server-sell` - Sell items in your inventory to the server
+
 
 ---
 
@@ -46,28 +49,29 @@ This keeps concerns separate yet lets every part of ZaraSprite “see” new dat
 | 1 | **📨 InputHandlerAgent** | Listens for DMs & mentions → writes to `inbound_messages`. |
 | 2 | **💬 SessionManagerAgent** | Opens/closes sessions, manages expirations & escalations, notifies players. |
 | 3 | **🧭 IntentAgent** | Classifies each message (tutorial request, question, TP, etc.) and routes tasks. |
-| 4 | **🎭 PersonalityAgent** *(opt.)* | Wraps raw GPT text in ZaraSprite’s warm, concise voice. |
+| 4 | **🎭 PersonalityAgent** | Wraps raw GPT text in ZaraSprite’s warm, concise voice. |
 | 5 | **🧍 MovementManagerAgent** | Teleports, follows, queues movement, tracks “busy” state. |
 | 6 | **💡 ResponseEngineAgent** | Builds GPT prompts, checks wiki facts, reviews & filters final output. |
+|6.1| > **Sub-agent: SafetyAgent** – scan messages for risky or prohibited requests  
 | 7 | **📚 WikiLookupAgent** | Searches the Theatria Wiki; returns snippets or links. |
-| 8 | **🗺️ GuidanceAgent** (*Trailstones*) | Launches, pauses, resumes tutorial modules; emits tutorial prompts & hints. |
+| 8 | **🗺️ GuidanceAgent** (*Trailstones*) | Launches, pauses, resumes tutorial modules; suggests next Trailstones (with clickable link in chat to start) |
 | 9 | **🥰 MemoryManagerAgent** | Stores long-term player prefs (verbosity, completed lessons, past questions). |
 |10 | **⏰ SchedulerAgent** | Runs timed jobs—queue updates, session timeouts, periodic nudges. |
 |11 | **📢 CommunicatorAgent** | Sends all outbound `/tell` messages, queue notices, and tutorial steps. |
 
 > **Future Agents**  
 > * **EmotionAgent** – adjust tone for urgency, celebration, or confusion  
-> * **SafetyAgent** – scan messages for risky or prohibited requests  
-
+> * **EconomyAgent** - polls external database for chestshop listings (Player, item, sell/buy, price, location) can review that data and summarize trends.
+> * **McMMOAgent** - aware of player McMMO levels, knows the McMMO wiki, and can explain McMMO skills, abilities, levels, and other related topics. 
 ---
 
 ## 📚 Conversational Knowledge Domains
 
 | Domain | ZaraSprite Must… | Example Follow-ups |
 |--------|------------------|--------------------|
-| **Ranks** | Identify player’s rank & perks; outline upgrade steps. | “Want a breakdown of costs for the next rank?” |
+| **Ranks** | Identify player’s rank & perks; outline upgrade steps. | “Want a breakdown of costs for your next rank?” |
 | **Commands** | Provide syntax, examples, cooldowns. | “Would `/sethome` help here?” |
-| **Economy** | Explain Denarii sources & sinks, market trends. | “Curious where ores sell best right now?” |
+| **Economy** | Explain how to make and spend Denarii. | “” |
 
 ---
 
