@@ -26,8 +26,8 @@ function extractText(obj) {
 // The Bot
 function createBot() {
   const bot = mineflayer.createBot({
-    host: '50.28.105.83', // TEST Server IP
-    // host: 'mc.playtheatria.com', // Theatria Server IP
+    // host: '50.28.105.83', // TEST Server IP
+    host: 'mc.playtheatria.com', // Theatria Server IP
     port: 25565,
     username: 'ZaraSprite@outlook.com', // Microsoft account email
     version: '1.21.4',
