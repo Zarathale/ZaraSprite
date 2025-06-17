@@ -1,14 +1,16 @@
 // == ZaraSprite: bot.js ==
-// Proof-of-concept startup and message handler
+// Proof-of-concept with logging, command parsing, and config modularization
 
 const mineflayer = require('mineflayer');
 
-// --- Config (Read from env or hardcoded during early dev) ---
+// --- Config (Inline for now) ---
 const config = {
-  host: 'play.theatria.net', // DO NOT HARDCODE in prod
+  host: 'play.theatria.net',
   port: 25565,
   username: 'ZaraSprite',
-  version: false // auto-detect
+  version: false,
+  DEBUG_MODE: true,
+  testers: ['Zarathale']
 };
 
 // --- Utility Logger ---
@@ -18,6 +20,13 @@ function logInfo(label, message) {
 
 function logError(label, error) {
   console.error(`[${new Date().toISOString()}] [ERROR] [${label}]`, error);
+}
+
+function logDebug(label, data) {
+  if (config.DEBUG_MODE) {
+    console.log(`[${new Date().toISOString()}] [DEBUG] [${label}]`);
+    console.dir(data, { depth: null });
+  }
 }
 
 // --- Connection Logic ---
@@ -49,17 +58,24 @@ function setupDirectMessageListener(bot) {
   bot.on('message', (jsonMsg, position, sender) => {
     try {
       const raw = jsonMsg;
-      const isWhisper = (position === 2); // Position 2 likely = whisper
+      const isWhisper = (position === 2);
       const senderName = sender ? sender.username : 'Unknown';
 
       if (isWhisper) {
         logInfo("DM", `From: ${senderName} | Type: ${position}`);
         logInfo("DM", `Raw Message Object:\n${JSON.stringify(raw, null, 2)}`);
+        logDebug("DM", { jsonMsg, position, sender });
       }
     } catch (err) {
       logError("DM Listener", err);
     }
   });
+}
+
+// --- Safe Command Parser ---
+function isValidCommand(cmd) {
+  // Block semicolons, pipes, newlines, and escape characters
+  return !/[;\n\r|\\]/.test(cmd);
 }
 
 // --- Command Listener Logic ---
@@ -68,12 +84,18 @@ function setupCommandListener(bot) {
 
   bot.on('chat', (username, message) => {
     try {
-      if (username !== 'Zarathale') return;
+      if (!config.testers.includes(username)) return;
 
       const match = message.match(COMMAND_PREFIX_REGEX);
       if (match) {
         const fullCommand = match[1];
-        logInfo("CommandParser", `Received command from Zarathale: /${fullCommand}`);
+
+        if (!isValidCommand(fullCommand)) {
+          logError("CommandParser", `Blocked potentially unsafe command: ${fullCommand}`);
+          return;
+        }
+
+        logInfo("CommandParser", `Received command from ${username}: /${fullCommand}`);
         bot.chat(`/${fullCommand}`);
         logInfo("CommandExec", `Executed: /${fullCommand}`);
       }
