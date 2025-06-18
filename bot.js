@@ -67,15 +67,15 @@ function parsePrivateMessage(jsonMsg) {
     const sender = flat[arrowIdx - 1]?.text?.trim() || 'Unknown';
     const receiver = flat[arrowIdx + 1]?.text?.trim() || 'ZaraSprite';
 
-    const endBracketIdx = flat.findIndex((e, idx) => idx > arrowIdx && e.text === ']');
-    const messageStartIdx = endBracketIdx + 1;
-
-    const messageParts = flat.slice(messageStartIdx)
+    const closingIdx = flat.findIndex((e, idx) => idx > arrowIdx && e.text === ']');
+    const messageParts = flat.slice(closingIdx + 1)
       .map(e => e.text)
       .filter(Boolean)
       .join(' ')
       .replace(/\sflp[ms]_[0-9a-f\-]+\s*/g, '')
       .replace(/\[.*?->.*?\]/g, '')
+      .replace(/\]+/g, '')
+      .replace(/\s+/g, ' ')
       .trim();
 
     if (!messageParts) return null;
