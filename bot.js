@@ -5,7 +5,7 @@ const mineflayer = require('mineflayer');
 
 // --- Config (Inline for now) ---
 const config = {
-  host: 'play.theatria.net',
+  host: 'mc.playtheatria.com',
   port: 25565,
   username: 'ZaraSprite',
   version: false,
