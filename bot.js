@@ -1,52 +1,38 @@
 // == ZaraSprite: bot.js ==
-// Proof-of-concept with logging, command parsing, and config modularization
+// Proof-of-concept with clean DM parsing and message filtering
 
 const mineflayer = require('mineflayer');
 
-// --- Config (Inline for now) ---
+// --- Config ---
 const config = {
   host: 'mc.playtheatria.com',
   port: 25565,
   username: 'ZaraSprite',
   auth: 'microsoft',
   version: '1.20.4',
-  DEBUG_MODE: false, // Turn off debug logs for clean output
+  DEBUG_MODE: false,
   testers: ['Zarathale']
 };
 
-// --- Utility Logger ---
+// --- Logging ---
 function logInfo(label, message) {
   console.log(`[${new Date().toISOString()}] [INFO] [${label}] ${message}`);
 }
-
 function logError(label, message) {
   console.error(`[${new Date().toISOString()}] [ERROR] [${label}] ${message}`);
 }
-
 function logDebug(label, obj) {
-  if (config.DEBUG_MODE) {
-    console.dir({ [label]: obj }, { depth: null });
-  }
+  if (config.DEBUG_MODE) console.dir({ [label]: obj }, { depth: null });
 }
 
-// --- Connection ---
+// --- Connect ---
 function connectToServer(cfg) {
   try {
     logInfo("Startup", `Connecting as ${cfg.username} to ${cfg.host}:${cfg.port}...`);
     const bot = mineflayer.createBot(cfg);
-
-    bot.once('login', () => {
-      logInfo("Connection", `Successfully logged in as ${bot.username}`);
-    });
-
-    bot.on('end', () => {
-      logInfo("Connection", `Bot has disconnected.`);
-    });
-
-    bot.on('error', (err) => {
-      logError("Connection", err.message);
-    });
-
+    bot.once('login', () => logInfo("Connection", `Successfully logged in as ${bot.username}`));
+    bot.on('end', () => logInfo("Connection", `Bot has disconnected.`));
+    bot.on('error', (err) => logError("Connection", err.message));
     return bot;
   } catch (err) {
     logError("Connection", err.message);
@@ -54,16 +40,7 @@ function connectToServer(cfg) {
   }
 }
 
-// --- Message Debug Probe ---
-function setupMessageProbes(bot) {
-  if (!config.DEBUG_MODE) return;
-  bot.on('message', (jsonMsg) => {
-    logInfo("RawMessage", jsonMsg.toString());
-    logDebug("ParsedMessage", jsonMsg);
-  });
-}
-
-// --- Recursive Flattening Utility ---
+// --- Message Flattening ---
 function flattenAllText(node, result = [], inheritedColor = null, path = 'root') {
   if (!node) return result;
   if (typeof node === 'string') {
@@ -108,9 +85,7 @@ function extractSender(jsonMsg) {
     const context = flat.slice(Math.max(0, idx - 2), idx + 8);
     const candidates = context.map(f => f.text?.trim().toLowerCase()).filter(Boolean);
     const match = candidates.find(c => config.testers.some(t => t.toLowerCase() === c));
-    if (match) {
-      return config.testers.find(t => t.toLowerCase() === match);
-    }
+    if (match) return config.testers.find(t => t.toLowerCase() === match);
     if (flat[idx + 1] && flat[idx + 1].text?.trim()) {
       return flat[idx + 1].text.trim();
     }
@@ -121,53 +96,40 @@ function extractSender(jsonMsg) {
 function extractMessage(jsonMsg) {
   const flat = flattenAllText(jsonMsg);
   const lightPurples = flat.filter(f => f.color === 'light_purple' && f.text?.trim());
-  if (lightPurples.length > 0) {
-    return lightPurples[lightPurples.length - 1].text.trim();
-  }
+  if (lightPurples.length > 0) return lightPurples[lightPurples.length - 1].text.trim();
   const fallback = flat.find(f => f.text?.trim() && f.text.length > 10);
-  if (fallback) {
-    return fallback.text.trim();
-  }
+  if (fallback) return fallback.text.trim();
   return null;
 }
 
 function extractDeepWhisper(jsonMsg) {
-  try {
-    const sender = extractSender(jsonMsg);
-    const message = extractMessage(jsonMsg);
-    return { sender: sender || 'Unknown', message: message || null };
-  } catch (err) {
-    logError("WhisperParse", err.message);
-    return null;
-  }
+  const flat = flattenAllText(jsonMsg);
+  const senderIdx = flat.findIndex(f => f.text?.toLowerCase().includes('sender:'));
+  if (senderIdx === -1) return null; // Not a DM
+  const sender = extractSender(jsonMsg);
+  const message = extractMessage(jsonMsg);
+  return { sender: sender || 'Unknown', message: message || null };
 }
 
+// --- Listeners ---
 function setupDirectMessageListener(bot) {
   bot.on('message', (jsonMsg) => {
-    try {
-      const parsed = extractDeepWhisper(jsonMsg);
-      if (parsed && parsed.message) {
-        logInfo("DM", `From: ${parsed.sender} | Message: ${parsed.message}`);
-      }
-    } catch (err) {
-      logError("DMListener", `Failed to parse whisper: ${err.message}`);
+    const parsed = extractDeepWhisper(jsonMsg);
+    if (parsed && parsed.sender && parsed.message) {
+      logInfo("DM", `From: ${parsed.sender} | Message: ${parsed.message}`);
     }
   });
 }
 
-// --- Command Listener ---
 function setupCommandListener(bot) {
   bot.on('message', (jsonMsg) => {
     try {
       const base = jsonMsg.json;
       if (!base || !Array.isArray(base.extra)) return;
-
       const firstPart = base.extra[0];
       if (!firstPart?.text || !config.testers.includes(firstPart.text.trim())) return;
-
       const text = base.extra.map(p => p.text).join('').trim();
       const match = text.match(/^ZaraSprite \/(.+)/);
-
       if (match) {
         const command = match[1];
         logInfo("CommandExec", `Executing: /${command}`);
@@ -179,6 +141,14 @@ function setupCommandListener(bot) {
   });
 }
 
+function setupMessageProbes(bot) {
+  if (!config.DEBUG_MODE) return;
+  bot.on('message', (jsonMsg) => {
+    logInfo("RawMessage", jsonMsg.toString());
+    logDebug("ParsedMessage", jsonMsg);
+  });
+}
+
 // --- Entrypoint ---
 function main() {
   const bot = connectToServer(config);
@@ -186,7 +156,6 @@ function main() {
     logError("Main", "Bot creation failed.");
     return;
   }
-
   setupMessageProbes(bot);
   setupDirectMessageListener(bot);
   setupCommandListener(bot);
