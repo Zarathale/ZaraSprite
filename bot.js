@@ -103,11 +103,15 @@ function flattenAllText(node, result = [], inheritedColor = null) {
 function extractSender(jsonMsg) {
   const flat = flattenAllText(jsonMsg);
   const idx = flat.findIndex(f => f.text?.toLowerCase().includes('sender:'));
-  if (idx !== -1 && flat[idx + 1]?.text) {
-    const candidate = flat[idx + 1].text.trim();
-    const isKnown = config.testers.map(t => t.toLowerCase()).includes(candidate.toLowerCase());
-    logDebug("SenderFound", candidate);
-    return candidate;
+  if (idx !== -1) {
+    for (let i = idx + 1; i < idx + 4 && i < flat.length; i++) {
+      const candidate = flat[i]?.text?.trim();
+      if (candidate && config.testers.some(t => t.toLowerCase() === candidate.toLowerCase())) {
+        logDebug("SenderFound", candidate);
+        return candidate;
+      }
+    }
+    logDebug("SenderFallbackMiss", flat.slice(idx, idx + 4));
   }
   return null;
 }
