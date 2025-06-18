@@ -75,10 +75,13 @@ function flattenAllText(node, result = [], inheritedColor = null) {
   }
   if (typeof node === 'object') {
     const color = node.color || inheritedColor;
-    if (typeof node.text === 'string') {
+    if (typeof node.text === 'string' && node.text.trim()) {
       result.push({ text: node.text.trim(), color });
     }
     if (node?.toString?.name === 'ChatMessage') {
+      flattenAllText(node.json, result, color);
+    }
+    if (node.json && typeof node.json === 'object') {
       flattenAllText(node.json, result, color);
     }
     Object.values(node).forEach(value => {
