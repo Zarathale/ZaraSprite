@@ -1,5 +1,5 @@
 // == ZaraSprite: bot.js ==
-// DM parsing using message event with pattern matching
+// DM parsing using explicit JSON path traversal for Theatria-style private messages
 
 const mineflayer = require('mineflayer');
 
@@ -10,7 +10,7 @@ const config = {
   username: 'ZaraSprite',
   auth: 'microsoft',
   version: '1.20.4',
-  DEBUG_MODE: true
+  DEBUG_MODE: false
 };
 
 // --- Logging ---
@@ -39,63 +39,34 @@ function connectToServer(cfg) {
   }
 }
 
-// --- Message Flattening ---
-function flattenAllText(node, result = [], inheritedColor = null, path = 'root') {
-  if (!node) return result;
-  if (typeof node === 'string') {
-    result.push({ text: node.trim(), color: inheritedColor, path });
-    return result;
-  }
-  if (Array.isArray(node)) {
-    node.forEach((n, i) => flattenAllText(n, result, inheritedColor, `${path}[${i}]`));
-    return result;
-  }
-  if (typeof node === 'object') {
-    const color = node.color || inheritedColor;
-    if (typeof node.text === 'string' && node.text.trim()) {
-      result.push({ text: node.text.trim(), color, path });
-    }
-    if (node?.toString?.name === 'ChatMessage') {
-      flattenAllText(node.json, result, color, `${path}.json`);
-    }
-    if (node.json && typeof node.json === 'object') {
-      flattenAllText(node.json, result, color, `${path}.json`);
-    }
-    if (Array.isArray(node.extra)) {
-      flattenAllText(node.extra, result, color, `${path}.extra`);
-    }
-    if (node.hoverEvent?.contents) {
-      flattenAllText(node.hoverEvent.contents, result, color, `${path}.hoverEvent.contents`);
-    }
-    Object.entries(node).forEach(([key, value]) => {
-      if (typeof value === 'object' || Array.isArray(value)) {
-        flattenAllText(value, result, color, `${path}.${key}`);
-      }
-    });
-    return result;
-  }
-  return result;
-}
-
 function setupMessageListener(bot) {
-  bot.on('message', (jsonMsg) => {
+  bot.on('message', (msg) => {
     try {
-      const flat = flattenAllText(jsonMsg);
-      if (flat[0]?.text !== '[' || flat[1]?.text !== 'PM') return;
+      const base = msg?.json?.extra?.[0]?.extra;
+      if (!Array.isArray(base)) return;
 
-      const arrowIdx = flat.findIndex(f => f.text === ' -> ');
+      // Must start with [PM
+      const prefix = base.slice(0, 2).map(x => x.extra?.[0] || x[''] || '').join('').trim();
+      if (!prefix.startsWith('[PM')) return;
+
+      // Locate ' -> ' and navigate to sender/receiver
+      let arrowIdx = base.findIndex(x => x.extra?.[0] === '-> ' || x[''] === '-> ');
       if (arrowIdx < 2) return;
 
-      const sender = flat[arrowIdx - 1]?.text;
-      const receiver = flat[arrowIdx + 1]?.text;
-      const messageParts = flat.slice(arrowIdx + 2);
+      const sender = base[arrowIdx - 1]?.extra?.[0] || base[arrowIdx - 1]?.[''] || 'Unknown';
+      const receiver = base[arrowIdx + 1]?.extra?.[0] || base[arrowIdx + 1]?.[''] || 'ZaraSprite';
 
-      let body = messageParts.map(p => p.text).join(' ').trim();
-      body = body.replace(/\sflp[ms]_[0-9a-f\-]+\s*/g, '');
+      // Traverse forward to get the actual message
+      const trail = base.slice(arrowIdx + 2);
+      const messagePart = trail.flatMap(e => {
+        if (Array.isArray(e.extra)) return e.extra;
+        return [e];
+      }).flatMap(e => typeof e === 'string' ? [e] : (e.text ? [e.text] : []));
 
-      if (sender && receiver && body) {
-        logInfo("DM", `From: ${sender} → ${receiver} | ${body}`);
-      }
+      let body = messagePart.join(' ').replace(/\sflp[ms]_[0-9a-f\-]+\s*/g, '').trim();
+      if (!body) return;
+
+      logInfo("DM", `From: ${sender} → ${receiver} | ${body}`);
     } catch (err) {
       logError("MessageParse", err.message);
     }
