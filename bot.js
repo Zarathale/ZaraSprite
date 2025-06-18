@@ -9,7 +9,7 @@ const config = {
   port: 25565,
   username: 'ZaraSprite',
   auth: 'microsoft', // Use 'microsoft' for Microsoft accounts
-  version: false,
+  version: '1.21.4',
   DEBUG_MODE: true,
   testers: ['Zarathale']
 };
