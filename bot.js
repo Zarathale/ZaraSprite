@@ -8,7 +8,7 @@ const config = {
   host: 'mc.playtheatria.com',
   port: 25565,
   username: 'ZaraSprite',
-  auth: 'microsoft', // Use 'microsoft' for Microsoft accounts
+  auth: 'microsoft',
   version: '1.20.4',
   DEBUG_MODE: true,
   testers: ['Zarathale']
@@ -62,22 +62,49 @@ function setupMessageProbes(bot) {
   });
 }
 
-// --- DM Listener ---
+// --- Recursive Whisper Parser ---
+function flattenExtras(node, list = []) {
+  if (!node) return list;
+  if (Array.isArray(node)) {
+    node.forEach(n => flattenExtras(n, list));
+  } else {
+    if (typeof node.text === 'string') {
+      list.push({ text: node.text, color: node.color });
+    }
+    if (node.extra) {
+      flattenExtras(node.extra, list);
+    }
+  }
+  return list;
+}
+
+function extractDeepWhisper(jsonMsg) {
+  try {
+    const flat = flattenExtras(jsonMsg?.json?.extra);
+    const messageText = flat.map(e => e.text).join('').trim();
+
+    const senderPart = flat.find(e => e.color === 'gold');
+    const sender = senderPart?.text?.trim() || null;
+
+    if (sender && messageText.includes(sender)) {
+      const msg = messageText.split(sender).pop().replace(/^\W+/, '').trim();
+      return { sender, message: msg };
+    }
+
+    return sender ? { sender, message: messageText } : null;
+  } catch (err) {
+    return null;
+  }
+}
+
 function setupDirectMessageListener(bot) {
   bot.on('message', (jsonMsg) => {
     try {
-      const base = jsonMsg.json;
-      if (!base || !Array.isArray(base.extra)) return;
-
-      const firstPart = base.extra[0];
-      if (!firstPart?.text) return;
-
-      const sender = firstPart.text.replace(/[: ]+$/, '');
-      const remainingParts = base.extra.slice(1).map(p => p.text).join('').trim();
-
-      if (!remainingParts) return;
-
-      logInfo("DM", `From: ${sender} | Message: ${remainingParts}`);
+      const parsed = extractDeepWhisper(jsonMsg);
+      if (parsed) {
+        logInfo("DM", `From: ${parsed.sender} | Message: ${parsed.message}`);
+        logDebug("DM.full", jsonMsg);
+      }
     } catch (err) {
       logError("DMListener", `Failed to parse whisper: ${err.message}`);
     }
