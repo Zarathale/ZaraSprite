@@ -104,14 +104,14 @@ function extractSender(jsonMsg) {
   const flat = flattenAllText(jsonMsg);
   const idx = flat.findIndex(f => f.text?.toLowerCase().includes('sender:'));
   if (idx !== -1) {
-    for (let i = idx + 1; i < idx + 4 && i < flat.length; i++) {
-      const candidate = flat[i]?.text?.trim();
-      if (candidate && config.testers.some(t => t.toLowerCase() === candidate.toLowerCase())) {
-        logDebug("SenderFound", candidate);
-        return candidate;
-      }
+    const candidates = flat.slice(idx + 1, idx + 8).map(f => f.text?.trim()).filter(Boolean);
+    const match = candidates.find(c => config.testers.some(t => t.toLowerCase() === c.toLowerCase()));
+    if (match) {
+      logDebug("SenderFound", match);
+      return match;
+    } else {
+      logDebug("SenderScan", { from: idx, candidates });
     }
-    logDebug("SenderFallbackMiss", flat.slice(idx, idx + 4));
   }
   return null;
 }
