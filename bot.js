@@ -96,19 +96,15 @@ function connectToServer(config) {
 
 // --- DM Listener Logic ---
 function setupDirectMessageListener(bot) {
-  bot.on('message', (jsonMsg, position, sender) => {
+  bot.on('message', (jsonMsg) => {
     try {
-      const raw = jsonMsg;
-      const isWhisper = (position === 2);
-      const senderName = sender ? sender.username : 'Unknown';
-
-      if (isWhisper) {
-        logInfo("DM", `From: ${senderName} | Type: ${position}`);
-        logInfo("DM", `Raw Message Object:\n${JSON.stringify(raw, null, 2)}`);
-        logDebug("DM", { jsonMsg, position, sender });
+      const text = jsonMsg?.extra?.map(e => e.text).join('') || '';
+      if (text.includes('whispers to you:')) {
+        logInfo("DM", `Parsed whisper from raw message: ${text}`);
+        logDebug("DM.full", jsonMsg);
       }
     } catch (err) {
-      logError("DM Listener", err);
+      logError("DM", `Error parsing message: ${err}`);
     }
   });
 }
@@ -156,7 +152,7 @@ function main() {
 
   // Setup message probes
   setupMessageProbes(bot);
-  
+
   // Functional liseteners
   setupDirectMessageListener(bot);
   setupCommandListener(bot);
