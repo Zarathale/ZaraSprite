@@ -84,6 +84,14 @@ function flattenAllText(node, result = [], inheritedColor = null) {
     if (node.json && typeof node.json === 'object') {
       flattenAllText(node.json, result, color);
     }
+    if (node.extra && Array.isArray(node.extra)) {
+      node.extra.forEach(item => {
+        if (item?.json?.text) {
+          result.push({ text: item.json.text.trim(), color: item.json.color || color });
+        }
+        flattenAllText(item, result, color);
+      });
+    }
     Object.values(node).forEach(value => {
       if (typeof value === 'object' || Array.isArray(value)) {
         flattenAllText(value, result, color);
