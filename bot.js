@@ -1,5 +1,5 @@
 // == ZaraSprite: bot.js ==
-// Robust DM parsing for Theatria messages with deep nested structures
+// Clean DM parsing with refined logic and reduced terminal noise
 
 const mineflayer = require('mineflayer');
 
@@ -10,7 +10,7 @@ const config = {
   username: 'ZaraSprite',
   auth: 'microsoft',
   version: '1.20.4',
-  DEBUG_MODE: true
+  DEBUG_MODE: false
 };
 
 // --- Logging ---
@@ -67,7 +67,6 @@ function parsePrivateMessage(jsonMsg) {
     const sender = flat[arrowIdx - 1]?.text?.trim() || 'Unknown';
     const receiver = flat[arrowIdx + 1]?.text?.trim() || 'ZaraSprite';
 
-    // Find closing bracket index (usually ending [Sender -> Target])
     const endBracketIdx = flat.findIndex((e, idx) => idx > arrowIdx && e.text === ']');
     const messageStartIdx = endBracketIdx + 1;
 
@@ -76,6 +75,7 @@ function parsePrivateMessage(jsonMsg) {
       .filter(Boolean)
       .join(' ')
       .replace(/\sflp[ms]_[0-9a-f\-]+\s*/g, '')
+      .replace(/\[.*?->.*?\]/g, '')
       .trim();
 
     if (!messageParts) return null;
