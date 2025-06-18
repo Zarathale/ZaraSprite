@@ -1,5 +1,5 @@
 // == ZaraSprite: bot.js ==
-// Clean DM parsing with refined logic and reduced terminal noise
+// Clean DM parsing with final trimming pass and message fragment exclusion
 
 const mineflayer = require('mineflayer');
 
@@ -40,8 +40,9 @@ function connectToServer(cfg) {
 }
 
 // --- Deep Chat Traversal ---
-function flatten(msgNode, depth = 0, arr = []) {
-  if (!msgNode || typeof msgNode !== 'object') return arr;
+function flatten(msgNode, depth = 0, arr = [], visited = new WeakSet()) {
+  if (!msgNode || typeof msgNode !== 'object' || visited.has(msgNode)) return arr;
+  visited.add(msgNode);
   if (typeof msgNode.text === 'string' && msgNode.text.trim()) {
     arr.push({ text: msgNode.text.trim(), color: msgNode.color, depth });
   }
@@ -49,10 +50,7 @@ function flatten(msgNode, depth = 0, arr = []) {
     arr.push({ text: msgNode[''].trim(), color: msgNode.color, depth });
   }
   if (Array.isArray(msgNode.extra)) {
-    msgNode.extra.forEach(e => flatten(e, depth + 1, arr));
-  }
-  if (msgNode.json && typeof msgNode.json === 'object') {
-    flatten(msgNode.json, depth + 1, arr);
+    msgNode.extra.forEach(e => flatten(e, depth + 1, arr, visited));
   }
   return arr;
 }
@@ -73,7 +71,7 @@ function parsePrivateMessage(jsonMsg) {
       .filter(Boolean)
       .join(' ')
       .replace(/\sflp[ms]_[0-9a-f\-]+\s*/g, '')
-      .replace(/\[.*?->.*?\]/g, '')
+      .replace(/\[[^\]]*?->\s*?[^\]]*?\]/g, '')
       .replace(/\]+/g, '')
       .replace(/\s+/g, ' ')
       .trim();
