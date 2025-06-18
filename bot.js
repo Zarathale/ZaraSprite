@@ -66,7 +66,7 @@ function setupMessageProbes(bot) {
 function flattenAllText(node, result = [], inheritedColor = null) {
   if (!node) return result;
   if (typeof node === 'string') {
-    result.push({ text: node, color: inheritedColor });
+    result.push({ text: node.trim(), color: inheritedColor });
     return result;
   }
 
@@ -78,7 +78,7 @@ function flattenAllText(node, result = [], inheritedColor = null) {
   if (typeof node === 'object') {
     const color = node.color || inheritedColor;
     if (typeof node.text === 'string') {
-      result.push({ text: node.text, color });
+      result.push({ text: node.text.trim(), color });
     }
 
     if (node?.toString?.name === 'ChatMessage') {
@@ -107,7 +107,8 @@ function extractDeepWhisper(jsonMsg) {
       const hoverFlat = flattenAllText(jsonMsg.hoverEvent.contents.extra);
       const match = hoverFlat.find(f => f.text?.includes('Sender:'));
       const next = hoverFlat[hoverFlat.indexOf(match) + 1];
-      if (next && config.testers.includes(next.text?.trim())) {
+      const normalized = next?.text?.trim().toLowerCase();
+      if (normalized && config.testers.map(t => t.toLowerCase()).includes(normalized)) {
         sender = next.text.trim();
         logDebug("SenderFallback", { sender });
       }
