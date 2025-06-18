@@ -10,7 +10,7 @@ const config = {
   username: 'ZaraSprite',
   auth: 'microsoft',
   version: '1.20.4',
-  DEBUG_MODE: false
+  DEBUG_MODE: true
 };
 
 // --- Logging ---
@@ -60,16 +60,18 @@ function flatten(msgNode, depth = 0, arr = []) {
 function parsePrivateMessage(jsonMsg) {
   try {
     const flat = flatten(jsonMsg);
-    const start = flat.findIndex(e => e.text === 'PM');
-    if (start === -1) return null;
-
     const arrowIdx = flat.findIndex(e => e.text === '->');
-    if (arrowIdx < 2) return null;
+    const pmIdx = flat.findIndex(e => e.text === 'PM');
+    if (pmIdx === -1 || arrowIdx < 2) return null;
 
     const sender = flat[arrowIdx - 1]?.text?.trim() || 'Unknown';
     const receiver = flat[arrowIdx + 1]?.text?.trim() || 'ZaraSprite';
 
-    const messageParts = flat.slice(arrowIdx + 2)
+    // Find closing bracket index (usually ending [Sender -> Target])
+    const endBracketIdx = flat.findIndex((e, idx) => idx > arrowIdx && e.text === ']');
+    const messageStartIdx = endBracketIdx + 1;
+
+    const messageParts = flat.slice(messageStartIdx)
       .map(e => e.text)
       .filter(Boolean)
       .join(' ')
