@@ -98,16 +98,33 @@ function connectToServer(config) {
 function setupDirectMessageListener(bot) {
   bot.on('message', (jsonMsg) => {
     try {
+      // Log the full raw message object for debug inspection
+      logDebug("DM.raw", jsonMsg);
+
+      // Extract readable message text from JSON
       const text = jsonMsg?.extra?.map(e => e.text).join('') || '';
-      if (text.includes('whispers to you:')) {
-        logInfo("DM", `Parsed whisper from raw message: ${text}`);
-        logDebug("DM.full", jsonMsg);
+
+      // Check for Theatria-style whisper format
+      if (text.includes("whispers to you:")) {
+        const match = text.match(/^(\w+)\swhispers to you:\s(.+)$/);
+
+        if (match) {
+          const sender = match[1];
+          const message = match[2];
+
+          logInfo("DM", `Sender: ${sender}`);
+          logInfo("DM", `Message: ${message}`);
+          logInfo("DM", `Raw Text: ${text}`);
+        } else {
+          logWarn("DM", `Whisper message did not match expected format: ${text}`);
+        }
       }
     } catch (err) {
-      logError("DM", `Error parsing message: ${err}`);
+      logError("DM", `Exception in DM handler: ${err}`);
     }
   });
 }
+
 
 // --- Safe Command Parser ---
 function isValidCommand(cmd) {
