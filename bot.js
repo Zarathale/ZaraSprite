@@ -95,6 +95,9 @@ function flattenAllText(node, result = [], inheritedColor = null) {
         flattenAllText(item, result, color);
       });
     }
+    if (node.hoverEvent?.contents) {
+      flattenAllText(node.hoverEvent.contents, result, color);
+    }
     Object.values(node).forEach(value => {
       if (typeof value === 'object' || Array.isArray(value)) {
         flattenAllText(value, result, color);
@@ -106,16 +109,18 @@ function flattenAllText(node, result = [], inheritedColor = null) {
 }
 
 function extractSender(jsonMsg) {
-  const contents = jsonMsg?.hoverEvent?.contents;
-  if (!contents) return null;
-  const flat = flattenAllText(contents);
+  const flat = flattenAllText(jsonMsg);
   const idx = flat.findIndex(f => f.text?.toLowerCase().includes('sender:'));
-  const next = flat[idx + 1];
-  const normalized = next?.text?.trim().toLowerCase();
-  const isKnown = config.testers.map(t => t.toLowerCase()).includes(normalized);
-  if (isKnown) {
-    logDebug("SenderMatch", next.text.trim());
-    return next.text.trim();
+  if (idx !== -1 && flat[idx + 1]?.text) {
+    const candidate = flat[idx + 1].text.trim();
+    const isKnown = config.testers.map(t => t.toLowerCase()).includes(candidate.toLowerCase());
+    if (isKnown) {
+      logDebug("SenderMatch", candidate);
+      return candidate;
+    } else {
+      logDebug("SenderUnknown", candidate);
+      return candidate;
+    }
   }
   return null;
 }
