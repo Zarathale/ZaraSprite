@@ -84,12 +84,29 @@ function parsePMMessage(jsonMsg) {
 // --- Listeners ---
 function setupDirectMessageListener(bot) {
   bot.on('message', (jsonMsg) => {
-    const parsed = parsePMMessage(jsonMsg);
-    if (parsed) {
-      logInfo("DM", `From: ${parsed.sender} | Message: ${parsed.message}`);
+    try {
+      const base = jsonMsg.json;
+      const plain = jsonMsg.toString();
+      if (!plain.includes('[PM] [')) return; // Quick filter
+
+      logInfo("DM-Raw", plain); // Show raw string form
+
+      // Plain pattern fallback (as sanity check)
+      const whisper = /^\[PM\] \[([^\]]+?) -> ([^\]]+?)\] (.+)$/;
+      const match = plain.match(whisper);
+      if (match) {
+        const [, sender, receiver, bodyRaw] = match;
+        const body = bodyRaw.replace(/\sflp[ms]_[0-9a-f-]+\s*/g, '').trim();
+        logInfo("DM-Match", `From: ${sender} → ${receiver} | ${body}`);
+      } else {
+        logInfo("DM-Skip", "Message matched PM filter but regex failed.");
+      }
+    } catch (err) {
+      logError("DM-Parse", err.message);
     }
   });
 }
+
 
 function setupMessageProbes(bot) {
   if (!config.DEBUG_MODE) return;
