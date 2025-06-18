@@ -113,6 +113,12 @@ function extractSender(jsonMsg) {
       logDebug("SenderFound", match);
       return config.testers.find(t => t.toLowerCase() === match);
     }
+    // Fallback to immediate next fragment
+    if (flat[idx + 1] && flat[idx + 1].text?.trim()) {
+      const raw = flat[idx + 1].text.trim();
+      logDebug("SenderFallback", raw);
+      return raw;
+    }
   }
   return null;
 }
