@@ -62,7 +62,7 @@ function setupMessageProbes(bot) {
   });
 }
 
-// --- Deep Flattener to Extract All Text Segments (Improved) ---
+// --- Deep Flattener to Extract All Text Segments (Handles strings in extras) ---
 function flattenAllText(node, result = [], inheritedColor = null) {
   if (!node) return result;
 
@@ -78,8 +78,15 @@ function flattenAllText(node, result = [], inheritedColor = null) {
     }
 
     if (Array.isArray(node.extra)) {
-      node.extra.forEach(child => flattenAllText(child, result, color));
+      node.extra.forEach(child => {
+        if (typeof child === 'string') {
+          result.push({ text: child, color });
+        } else {
+          flattenAllText(child, result, color);
+        }
+      });
     }
+
     if (node.json) flattenAllText(node.json, result, color);
     if (node.with) flattenAllText(node.with, result, color);
     if (node.contents) flattenAllText(node.contents, result, color);
