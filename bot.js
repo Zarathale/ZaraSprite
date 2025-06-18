@@ -1,5 +1,5 @@
 // == ZaraSprite: bot.js ==
-// DM parsing using explicit JSON path traversal for Theatria-style private messages
+// Robust DM parsing for Theatria messages with deep nested structures
 
 const mineflayer = require('mineflayer');
 
@@ -39,36 +39,58 @@ function connectToServer(cfg) {
   }
 }
 
+// --- Deep Chat Traversal ---
+function flatten(msgNode, depth = 0, arr = []) {
+  if (!msgNode || typeof msgNode !== 'object') return arr;
+  if (typeof msgNode.text === 'string' && msgNode.text.trim()) {
+    arr.push({ text: msgNode.text.trim(), color: msgNode.color, depth });
+  }
+  if (msgNode[''] && typeof msgNode[''] === 'string') {
+    arr.push({ text: msgNode[''].trim(), color: msgNode.color, depth });
+  }
+  if (Array.isArray(msgNode.extra)) {
+    msgNode.extra.forEach(e => flatten(e, depth + 1, arr));
+  }
+  if (msgNode.json && typeof msgNode.json === 'object') {
+    flatten(msgNode.json, depth + 1, arr);
+  }
+  return arr;
+}
+
+function parsePrivateMessage(jsonMsg) {
+  try {
+    const flat = flatten(jsonMsg);
+    const start = flat.findIndex(e => e.text === 'PM');
+    if (start === -1) return null;
+
+    const arrowIdx = flat.findIndex(e => e.text === '->');
+    if (arrowIdx < 2) return null;
+
+    const sender = flat[arrowIdx - 1]?.text?.trim() || 'Unknown';
+    const receiver = flat[arrowIdx + 1]?.text?.trim() || 'ZaraSprite';
+
+    const messageParts = flat.slice(arrowIdx + 2)
+      .map(e => e.text)
+      .filter(Boolean)
+      .join(' ')
+      .replace(/\sflp[ms]_[0-9a-f\-]+\s*/g, '')
+      .trim();
+
+    if (!messageParts) return null;
+
+    return { sender, receiver, body: messageParts };
+  } catch (err) {
+    logError("Parse", err.message);
+    return null;
+  }
+}
+
+// --- Listeners ---
 function setupMessageListener(bot) {
-  bot.on('message', (msg) => {
-    try {
-      const base = msg?.json?.extra?.[0]?.extra;
-      if (!Array.isArray(base)) return;
-
-      // Must start with [PM
-      const prefix = base.slice(0, 2).map(x => x.extra?.[0] || x[''] || '').join('').trim();
-      if (!prefix.startsWith('[PM')) return;
-
-      // Locate ' -> ' and navigate to sender/receiver
-      let arrowIdx = base.findIndex(x => x.extra?.[0] === '-> ' || x[''] === '-> ');
-      if (arrowIdx < 2) return;
-
-      const sender = base[arrowIdx - 1]?.extra?.[0] || base[arrowIdx - 1]?.[''] || 'Unknown';
-      const receiver = base[arrowIdx + 1]?.extra?.[0] || base[arrowIdx + 1]?.[''] || 'ZaraSprite';
-
-      // Traverse forward to get the actual message
-      const trail = base.slice(arrowIdx + 2);
-      const messagePart = trail.flatMap(e => {
-        if (Array.isArray(e.extra)) return e.extra;
-        return [e];
-      }).flatMap(e => typeof e === 'string' ? [e] : (e.text ? [e.text] : []));
-
-      let body = messagePart.join(' ').replace(/\sflp[ms]_[0-9a-f\-]+\s*/g, '').trim();
-      if (!body) return;
-
-      logInfo("DM", `From: ${sender} → ${receiver} | ${body}`);
-    } catch (err) {
-      logError("MessageParse", err.message);
+  bot.on('message', (jsonMsg) => {
+    const parsed = parsePrivateMessage(jsonMsg);
+    if (parsed) {
+      logInfo("DM", `From: ${parsed.sender} → ${parsed.receiver} | ${parsed.body}`);
     }
   });
 }
