@@ -62,22 +62,27 @@ function setupMessageProbes(bot) {
   });
 }
 
-// --- Deep Flattener to Extract All Text Segments ---
-function flattenAllText(node, result = []) {
+// --- Deep Flattener to Extract All Text Segments (Improved) ---
+function flattenAllText(node, result = [], inheritedColor = null) {
   if (!node) return result;
 
   if (typeof node === 'string') {
-    result.push({ text: node });
+    result.push({ text: node, color: inheritedColor });
   } else if (Array.isArray(node)) {
-    node.forEach(n => flattenAllText(n, result));
+    node.forEach(n => flattenAllText(n, result, inheritedColor));
   } else if (typeof node === 'object') {
-    if (typeof node.text === 'string') {
-      result.push({ text: node.text, color: node.color });
+    const color = node.color || inheritedColor;
+
+    if (typeof node.text === 'string' && node.text) {
+      result.push({ text: node.text, color });
     }
-    if (node.extra) flattenAllText(node.extra, result);
-    if (node.json) flattenAllText(node.json, result);
-    if (node.with) flattenAllText(node.with, result);
-    if (node.contents) flattenAllText(node.contents, result);
+
+    if (Array.isArray(node.extra)) {
+      node.extra.forEach(child => flattenAllText(child, result, color));
+    }
+    if (node.json) flattenAllText(node.json, result, color);
+    if (node.with) flattenAllText(node.with, result, color);
+    if (node.contents) flattenAllText(node.contents, result, color);
   }
 
   return result;
@@ -91,8 +96,8 @@ function extractDeepWhisper(jsonMsg) {
     const sender = flat.find(f => f.color === 'gold')?.text?.trim()
       || flat.find(f => f.text?.includes('Zarathale'))?.text?.trim();
 
-    const messageCandidate = flat.find(f => typeof f.text === 'string' && f.text.includes('test'))
-      || flat.find(f => f.color === 'light_purple' && f.text?.length > 5);
+    const messageCandidate = flat.find(f => f.color === 'light_purple' && f.text?.match(/\btest\b|\d{3}/))
+      || flat.find(f => f.text && f.text.length > 10);
 
     const message = messageCandidate?.text?.trim();
 
