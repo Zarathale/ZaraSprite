@@ -140,7 +140,10 @@ function extractDeepWhisper(jsonMsg) {
   try {
     const sender = extractSender(jsonMsg);
     const message = extractMessage(jsonMsg);
-    return sender && message ? { sender, message } : null;
+    logDebug("WhisperParts", { sender, message });
+    if (sender && message) return { sender, message };
+    if (message) return { sender: 'Unknown', message }; // partial fallback
+    return null;
   } catch (err) {
     logError("WhisperParse", err.message);
     return null;
