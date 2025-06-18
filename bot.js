@@ -62,21 +62,20 @@ function setupMessageProbes(bot) {
   });
 }
 
-// --- Recursive Whisper Parser ---
-function flattenDeepExtras(node, result = []) {
+// --- Enhanced Recursive Flattener ---
+function flattenChatComponents(node, result = []) {
   if (!node) return result;
 
   if (Array.isArray(node)) {
-    node.forEach(n => flattenDeepExtras(n, result));
+    node.forEach(n => flattenChatComponents(n, result));
   } else if (typeof node === 'object') {
     if (typeof node.text === 'string') {
       result.push({ text: node.text, color: node.color });
     }
-    if (node.extra) {
-      flattenDeepExtras(node.extra, result);
-    }
-    if (node.json && node.json.extra) {
-      flattenDeepExtras(node.json.extra, result);
+    if (node.extra) flattenChatComponents(node.extra, result);
+    if (node.json && node.json.extra) flattenChatComponents(node.json.extra, result);
+    if (node.json && typeof node.json.text === 'string') {
+      result.push({ text: node.json.text, color: node.json.color });
     }
   }
   return result;
@@ -84,14 +83,18 @@ function flattenDeepExtras(node, result = []) {
 
 function extractDeepWhisper(jsonMsg) {
   try {
-    const flat = flattenDeepExtras(jsonMsg);
-    const joined = flat.map(f => f.text).join('').trim();
+    const flat = flattenChatComponents(jsonMsg);
+    const fullText = flat.map(f => f.text).join('').trim();
 
-    const senderToken = flat.find(f => f.color === 'gold');
-    const msgToken = flat.find(f => f.color === 'light_purple' && f.text?.includes('test'));
+    // Try to extract sender name heuristically
+    const sender = flat.find(f => f.color === 'gold')?.text?.trim()
+      || flat.find(f => f.text?.includes('Zarathale'))?.text?.trim();
 
-    const sender = senderToken?.text?.trim() || null;
-    const message = msgToken?.text?.trim() || null;
+    // Try to extract final message string
+    const messageEntry = flat.reverse().find(f => f.color === 'light_purple' && f.text?.includes('test'))
+      || flat.find(f => f.text && f.text.length > 10);
+
+    const message = messageEntry?.text?.trim() || null;
 
     if (sender && message) {
       return { sender, message };
