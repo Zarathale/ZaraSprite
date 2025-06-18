@@ -62,18 +62,29 @@ function setupMessageProbes(bot) {
   });
 }
 
-// --- Deep Flattener to Extract All Text Segments (Handles strings in extras) ---
+// --- Deep Flattener ---
 function flattenAllText(node, result = [], inheritedColor = null) {
   if (!node) return result;
 
   if (typeof node === 'string') {
     result.push({ text: node, color: inheritedColor });
-  } else if (Array.isArray(node)) {
+    return result;
+  }
+
+  if (Array.isArray(node)) {
     node.forEach(n => flattenAllText(n, result, inheritedColor));
-  } else if (typeof node === 'object') {
+    return result;
+  }
+
+  if (typeof node === 'object') {
+    // Unwrap ChatMessage or MessageBuilder types
+    if (node.json) flattenAllText(node.json, result, inheritedColor);
+    if (node.with) flattenAllText(node.with, result, inheritedColor);
+    if (node.contents) flattenAllText(node.contents, result, inheritedColor);
+
     const color = node.color || inheritedColor;
 
-    if (typeof node.text === 'string' && node.text) {
+    if (typeof node.text === 'string') {
       result.push({ text: node.text, color });
     }
 
@@ -87,9 +98,7 @@ function flattenAllText(node, result = [], inheritedColor = null) {
       });
     }
 
-    if (node.json) flattenAllText(node.json, result, color);
-    if (node.with) flattenAllText(node.with, result, color);
-    if (node.contents) flattenAllText(node.contents, result, color);
+    return result;
   }
 
   return result;
