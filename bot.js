@@ -78,7 +78,6 @@ function flattenAllText(node, result = [], inheritedColor = null) {
     if (typeof node.text === 'string' && node.text.trim()) {
       result.push({ text: node.text.trim(), color });
     }
-    // Handle case: text is empty, but extra is a string[]
     if (Array.isArray(node.extra) && node.extra.every(e => typeof e === 'string')) {
       node.extra.forEach(txt => result.push({ text: txt.trim(), color }));
     }
@@ -123,8 +122,12 @@ function extractSender(jsonMsg) {
 
 function extractMessage(jsonMsg) {
   const flat = flattenAllText(jsonMsg);
-  const allPurples = flat.filter(f => f.color === 'light_purple' && f.text?.trim());
-  if (allPurples.length > 0) return allPurples[allPurples.length - 1].text.trim();
+  const lightPurples = flat.filter(f => f.color === 'light_purple' && f.text?.trim());
+  if (lightPurples.length > 0) {
+    const msg = lightPurples[lightPurples.length - 1].text.trim();
+    logDebug("LightPurpleMsg", msg);
+    return msg;
+  }
   const fallback = flat.find(f => f.text?.trim() && f.text.length > 10);
   if (fallback) {
     logDebug("MsgFallback", fallback.text);
