@@ -1,5 +1,5 @@
 // == ZaraSprite: bot.js ==
-// DM parsing using raw packet listener for reliable sender extraction
+// DM parsing using message event with pattern matching
 
 const mineflayer = require('mineflayer');
 
@@ -77,28 +77,27 @@ function flattenAllText(node, result = [], inheritedColor = null, path = 'root')
   return result;
 }
 
-function setupRawPacketListener(bot) {
-  bot._client.on('chat', (packet) => {
+function setupMessageListener(bot) {
+  bot.on('message', (jsonMsg) => {
     try {
-      const msg = JSON.parse(packet.message);
-      const flat = flattenAllText(msg);
-
-      const isWhisper = flat.some(f => f.text === 'PM');
-      if (!isWhisper) return;
+      const flat = flattenAllText(jsonMsg);
+      if (flat[0]?.text !== '[' || flat[1]?.text !== 'PM') return;
 
       const arrowIdx = flat.findIndex(f => f.text === ' -> ');
-      const sender = arrowIdx > 0 ? flat[arrowIdx - 1]?.text : null;
-      const receiver = arrowIdx > 0 ? flat[arrowIdx + 1]?.text : null;
+      if (arrowIdx < 2) return;
 
-      const messageParts = flat.slice(arrowIdx + 2).filter(f => f.color === 'light_purple');
+      const sender = flat[arrowIdx - 1]?.text;
+      const receiver = flat[arrowIdx + 1]?.text;
+      const messageParts = flat.slice(arrowIdx + 2);
+
       let body = messageParts.map(p => p.text).join(' ').trim();
       body = body.replace(/\sflp[ms]_[0-9a-f\-]+\s*/g, '');
 
       if (sender && receiver && body) {
-        logInfo("DM-RawClient", `From: ${sender} → ${receiver} | ${body}`);
+        logInfo("DM", `From: ${sender} → ${receiver} | ${body}`);
       }
     } catch (err) {
-      logError("RawPacket", err.message);
+      logError("MessageParse", err.message);
     }
   });
 }
@@ -119,7 +118,7 @@ function main() {
     return;
   }
   setupMessageProbes(bot);
-  setupRawPacketListener(bot);
+  setupMessageListener(bot);
 }
 
 main();
