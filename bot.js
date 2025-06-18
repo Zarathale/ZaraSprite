@@ -30,6 +30,46 @@ function logDebug(label, data) {
   }
 }
 
+// --- Message Probes ---
+function setupMessageProbes(bot) {
+  // Basic Chat
+  bot.on('chat', (username, message) => {
+    logInfo("chat", `From: ${username} | ${message}`);
+  });
+
+  // Whisper DM
+  bot.on('whisper', (username, message, rawMessage) => {
+    logInfo("whisper", `From: ${username} | ${message}`);
+    logDebug("whisper.raw", rawMessage);
+  });
+
+  // General Message JSON (may include system/DM)
+  bot.on('message', (jsonMsg, position, sender) => {
+    logInfo("message", `Pos: ${position} | From: ${sender?.username || 'N/A'}`);
+    logDebug("message.raw", jsonMsg);
+  });
+
+  // System Chat
+  bot._client.on('system_chat', (packet) => {
+    logInfo("system_chat", `Packet type: system_chat`);
+    logDebug("system_chat.packet", packet);
+  });
+
+  // Generic packet hook (for deep digging)
+  bot._client.on('packet', (data, meta) => {
+    if (meta.name === 'chat' || meta.name === 'system_chat' || meta.name === 'player_chat') {
+      logInfo("packet", `Incoming packet: ${meta.name}`);
+      logDebug("packet.data", data);
+    }
+  });
+
+  // Raw incoming text as fallback
+  bot.on('messagestr', (message) => {
+    logInfo("messagestr", `Raw text: ${message}`);
+  });
+}
+
+
 // --- Connection Logic ---
 function connectToServer(config) {
   try {
@@ -114,6 +154,10 @@ function main() {
     return;
   }
 
+  // Setup message probes
+  setupMessageProbes(bot);
+  
+  // Functional liseteners
   setupDirectMessageListener(bot);
   setupCommandListener(bot);
 }
