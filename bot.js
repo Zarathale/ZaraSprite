@@ -10,7 +10,7 @@ const config = {
   username: 'ZaraSprite',
   auth: 'microsoft',
   version: '1.20.4',
-  DEBUG_MODE: false
+  DEBUG_MODE: true
 };
 
 // --- Logging ---
