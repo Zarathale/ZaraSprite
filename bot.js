@@ -98,15 +98,15 @@ function flattenAllText(node, result = [], inheritedColor = null) {
 function extractDeepWhisper(jsonMsg) {
   try {
     const flat = flattenAllText(jsonMsg);
-    const fullText = flat.map(f => f.text).join('').trim();
 
     const sender = flat.find(f => f.color === 'gold')?.text?.trim()
       || flat.find(f => f.text?.includes('Zarathale'))?.text?.trim();
 
-    const messageCandidate = flat.find(f => f.color === 'light_purple' && f.text?.match(/\btest\b|\d{3}/))
-      || flat.find(f => f.text && f.text.length > 10);
-
-    const message = messageCandidate?.text?.trim();
+    const allPurples = flat.filter(f => f.color === 'light_purple' && f.text?.trim());
+    const message = (allPurples.length > 0
+      ? allPurples[allPurples.length - 1].text
+      : flat.find(f => f.text?.trim() && f.text.length > 10)?.text
+    )?.trim();
 
     if (sender && message) {
       return { sender, message };
