@@ -78,22 +78,14 @@ function flattenAllText(node, result = [], inheritedColor = null) {
     if (typeof node.text === 'string' && node.text.trim()) {
       result.push({ text: node.text.trim(), color });
     }
-    if (Array.isArray(node.extra) && node.extra.every(e => typeof e === 'string')) {
-      node.extra.forEach(txt => result.push({ text: txt.trim(), color }));
-    }
     if (node?.toString?.name === 'ChatMessage') {
       flattenAllText(node.json, result, color);
     }
     if (node.json && typeof node.json === 'object') {
       flattenAllText(node.json, result, color);
     }
-    if (node.extra && Array.isArray(node.extra)) {
-      node.extra.forEach(item => {
-        if (item?.json?.text) {
-          result.push({ text: item.json.text.trim(), color: item.json.color || color });
-        }
-        flattenAllText(item, result, color);
-      });
+    if (Array.isArray(node.extra)) {
+      flattenAllText(node.extra, result, color);
     }
     if (node.hoverEvent?.contents) {
       flattenAllText(node.hoverEvent.contents, result, color);
@@ -114,13 +106,8 @@ function extractSender(jsonMsg) {
   if (idx !== -1 && flat[idx + 1]?.text) {
     const candidate = flat[idx + 1].text.trim();
     const isKnown = config.testers.map(t => t.toLowerCase()).includes(candidate.toLowerCase());
-    if (isKnown) {
-      logDebug("SenderMatch", candidate);
-      return candidate;
-    } else {
-      logDebug("SenderUnknown", candidate);
-      return candidate;
-    }
+    logDebug("SenderFound", candidate);
+    return candidate;
   }
   return null;
 }
