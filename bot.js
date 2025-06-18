@@ -1,5 +1,5 @@
 // == ZaraSprite: bot.js ==
-// Proof-of-concept with clean DM parsing and message filtering
+// DM parsing using PM signature pattern
 
 const mineflayer = require('mineflayer');
 
@@ -10,8 +10,7 @@ const config = {
   username: 'ZaraSprite',
   auth: 'microsoft',
   version: '1.20.4',
-  DEBUG_MODE: false,
-  testers: ['Zarathale']
+  DEBUG_MODE: false
 };
 
 // --- Logging ---
@@ -40,103 +39,54 @@ function connectToServer(cfg) {
   }
 }
 
-// --- Message Flattening ---
-function flattenAllText(node, result = [], inheritedColor = null, path = 'root') {
-  if (!node) return result;
-  if (typeof node === 'string') {
-    result.push({ text: node.trim(), color: inheritedColor, path });
-    return result;
-  }
-  if (Array.isArray(node)) {
-    node.forEach((n, i) => flattenAllText(n, result, inheritedColor, `${path}[${i}]`));
-    return result;
-  }
-  if (typeof node === 'object') {
-    const color = node.color || inheritedColor;
-    if (typeof node.text === 'string' && node.text.trim()) {
-      result.push({ text: node.text.trim(), color, path });
-    }
-    if (node?.toString?.name === 'ChatMessage') {
-      flattenAllText(node.json, result, color, `${path}.json`);
-    }
-    if (node.json && typeof node.json === 'object') {
-      flattenAllText(node.json, result, color, `${path}.json`);
-    }
-    if (Array.isArray(node.extra)) {
-      flattenAllText(node.extra, result, color, `${path}.extra`);
-    }
-    if (node.hoverEvent?.contents) {
-      flattenAllText(node.hoverEvent.contents, result, color, `${path}.hoverEvent.contents`);
-    }
-    Object.entries(node).forEach(([key, value]) => {
-      if (typeof value === 'object' || Array.isArray(value)) {
-        flattenAllText(value, result, color, `${path}.${key}`);
+// --- DM Parser ---
+function parsePMMessage(jsonMsg) {
+  try {
+    const base = jsonMsg.json;
+    if (!base || !Array.isArray(base.extra)) return null;
+
+    const extra = base.extra;
+    if (!(extra[0]?.text === '[' && extra[1]?.text === 'PM')) return null;
+
+    let sender = null;
+    let receiver = null;
+    let foundArrow = false;
+    let foundClose = false;
+    let messageParts = [];
+
+    for (let i = 2; i < extra.length; i++) {
+      const part = extra[i];
+      if (part.text === ' -> ') {
+        foundArrow = true;
+      } else if (foundArrow && !receiver && part.color === 'light_purple') {
+        receiver = part.text.trim();
+      } else if (!foundArrow && part.color === 'gold') {
+        sender = part.text.trim();
+      } else if (part.text === '] ') {
+        foundClose = true;
+      } else if (foundClose && part.text?.trim()) {
+        messageParts.push(part.text.trim());
       }
-    });
-    return result;
-  }
-  return result;
-}
-
-function extractSender(jsonMsg) {
-  const flat = flattenAllText(jsonMsg);
-  const idx = flat.findIndex(f => f.text?.toLowerCase().includes('sender:'));
-  if (idx !== -1) {
-    const context = flat.slice(Math.max(0, idx - 2), idx + 8);
-    const candidates = context.map(f => f.text?.trim().toLowerCase()).filter(Boolean);
-    const match = candidates.find(c => config.testers.some(t => t.toLowerCase() === c));
-    if (match) return config.testers.find(t => t.toLowerCase() === match);
-    if (flat[idx + 1] && flat[idx + 1].text?.trim()) {
-      return flat[idx + 1].text.trim();
     }
+
+    let message = messageParts.join(' ').replace(/\sflp[ms]_[0-9a-f\-]+\s*/g, '').trim();
+
+    if (sender && message) {
+      return { sender, receiver, message };
+    }
+    return null;
+  } catch (err) {
+    logError("DMParser", `Exception during parse: ${err.message}`);
+    return null;
   }
-  return null;
-}
-
-function extractMessage(jsonMsg) {
-  const flat = flattenAllText(jsonMsg);
-  const lightPurples = flat.filter(f => f.color === 'light_purple' && f.text?.trim());
-  if (lightPurples.length > 0) return lightPurples[lightPurples.length - 1].text.trim();
-  const fallback = flat.find(f => f.text?.trim() && f.text.length > 10);
-  if (fallback) return fallback.text.trim();
-  return null;
-}
-
-function extractDeepWhisper(jsonMsg) {
-  const flat = flattenAllText(jsonMsg);
-  const senderIdx = flat.findIndex(f => f.text?.toLowerCase().includes('sender:'));
-  if (senderIdx === -1) return null; // Not a DM
-  const sender = extractSender(jsonMsg);
-  const message = extractMessage(jsonMsg);
-  return { sender: sender || 'Unknown', message: message || null };
 }
 
 // --- Listeners ---
 function setupDirectMessageListener(bot) {
   bot.on('message', (jsonMsg) => {
-    const parsed = extractDeepWhisper(jsonMsg);
-    if (parsed && parsed.sender && parsed.message) {
+    const parsed = parsePMMessage(jsonMsg);
+    if (parsed) {
       logInfo("DM", `From: ${parsed.sender} | Message: ${parsed.message}`);
-    }
-  });
-}
-
-function setupCommandListener(bot) {
-  bot.on('message', (jsonMsg) => {
-    try {
-      const base = jsonMsg.json;
-      if (!base || !Array.isArray(base.extra)) return;
-      const firstPart = base.extra[0];
-      if (!firstPart?.text || !config.testers.includes(firstPart.text.trim())) return;
-      const text = base.extra.map(p => p.text).join('').trim();
-      const match = text.match(/^ZaraSprite \/(.+)/);
-      if (match) {
-        const command = match[1];
-        logInfo("CommandExec", `Executing: /${command}`);
-        bot.chat(`/${command}`);
-      }
-    } catch (err) {
-      logError("CommandListener", `Failed to parse command: ${err.message}`);
     }
   });
 }
@@ -158,7 +108,6 @@ function main() {
   }
   setupMessageProbes(bot);
   setupDirectMessageListener(bot);
-  setupCommandListener(bot);
 }
 
 main();
