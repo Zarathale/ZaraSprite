@@ -62,70 +62,67 @@ function setupMessageProbes(bot) {
   });
 }
 
-// --- Deep Flatten and Hybrid Sender/Message Extractor ---
+// --- Recursive Flattening Utility ---
 function flattenAllText(node, result = [], inheritedColor = null) {
   if (!node) return result;
   if (typeof node === 'string') {
     result.push({ text: node.trim(), color: inheritedColor });
     return result;
   }
-
   if (Array.isArray(node)) {
     node.forEach(n => flattenAllText(n, result, inheritedColor));
     return result;
   }
-
   if (typeof node === 'object') {
     const color = node.color || inheritedColor;
     if (typeof node.text === 'string') {
       result.push({ text: node.text.trim(), color });
     }
-
     if (node?.toString?.name === 'ChatMessage') {
       flattenAllText(node.json, result, color);
     }
-
     ['extra', 'json', 'with', 'contents'].forEach(key => {
       if (node[key]) flattenAllText(node[key], result, color);
     });
-
     return result;
   }
-
   return result;
+}
+
+function extractSender(jsonMsg) {
+  const hover = jsonMsg?.hoverEvent?.contents?.extra;
+  if (!hover) return null;
+  const flat = flattenAllText(hover);
+  const idx = flat.findIndex(f => f.text?.includes('Sender:'));
+  const next = flat[idx + 1];
+  const normalized = next?.text?.trim().toLowerCase();
+  const isKnown = config.testers.map(t => t.toLowerCase()).includes(normalized);
+  if (isKnown) {
+    logDebug("SenderMatch", next.text.trim());
+    return next.text.trim();
+  }
+  return null;
+}
+
+function extractMessage(jsonMsg) {
+  const flat = flattenAllText(jsonMsg);
+  const allPurples = flat.filter(f => f.color === 'light_purple' && f.text?.trim());
+  if (allPurples.length > 0) return allPurples[allPurples.length - 1].text.trim();
+  const fallback = flat.find(f => f.text?.trim() && f.text.length > 10);
+  if (fallback) {
+    logDebug("MsgFallback", fallback.text);
+    return fallback.text.trim();
+  }
+  return null;
 }
 
 function extractDeepWhisper(jsonMsg) {
   try {
-    const flat = flattenAllText(jsonMsg);
-
-    // Try normal sender detection
-    let sender = flat.find(f => f.color === 'gold')?.text?.trim();
-
-    // Fallback: search hover metadata if sender not found
-    if (!sender && jsonMsg.hoverEvent?.contents?.extra) {
-      const hoverFlat = flattenAllText(jsonMsg.hoverEvent.contents.extra);
-      const match = hoverFlat.find(f => f.text?.includes('Sender:'));
-      const next = hoverFlat[hoverFlat.indexOf(match) + 1];
-      const normalized = next?.text?.trim().toLowerCase();
-      if (normalized && config.testers.map(t => t.toLowerCase()).includes(normalized)) {
-        sender = next.text.trim();
-        logDebug("SenderFallback", { sender });
-      }
-    }
-
-    const allPurples = flat.filter(f => f.color === 'light_purple' && f.text?.trim());
-    const message = (allPurples.length > 0
-      ? allPurples[allPurples.length - 1].text
-      : flat.find(f => f.text?.trim() && f.text.length > 10)?.text
-    )?.trim();
-
-    if (!message) {
-      logDebug("MessageFallback", flat);
-    }
-
+    const sender = extractSender(jsonMsg);
+    const message = extractMessage(jsonMsg);
     return sender && message ? { sender, message } : null;
   } catch (err) {
+    logError("WhisperParse", err.message);
     return null;
   }
 }
