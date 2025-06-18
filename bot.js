@@ -78,6 +78,10 @@ function flattenAllText(node, result = [], inheritedColor = null) {
     if (typeof node.text === 'string' && node.text.trim()) {
       result.push({ text: node.text.trim(), color });
     }
+    // Handle case: text is empty, but extra is a string[]
+    if (Array.isArray(node.extra) && node.extra.every(e => typeof e === 'string')) {
+      node.extra.forEach(txt => result.push({ text: txt.trim(), color }));
+    }
     if (node?.toString?.name === 'ChatMessage') {
       flattenAllText(node.json, result, color);
     }
