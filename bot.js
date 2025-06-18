@@ -81,8 +81,10 @@ function flattenAllText(node, result = [], inheritedColor = null) {
     if (node?.toString?.name === 'ChatMessage') {
       flattenAllText(node.json, result, color);
     }
-    ['extra', 'json', 'with', 'contents'].forEach(key => {
-      if (node[key]) flattenAllText(node[key], result, color);
+    Object.values(node).forEach(value => {
+      if (typeof value === 'object' || Array.isArray(value)) {
+        flattenAllText(value, result, color);
+      }
     });
     return result;
   }
@@ -90,10 +92,10 @@ function flattenAllText(node, result = [], inheritedColor = null) {
 }
 
 function extractSender(jsonMsg) {
-  const hover = jsonMsg?.hoverEvent?.contents?.extra;
-  if (!hover) return null;
-  const flat = flattenAllText(hover);
-  const idx = flat.findIndex(f => f.text?.includes('Sender:'));
+  const contents = jsonMsg?.hoverEvent?.contents;
+  if (!contents) return null;
+  const flat = flattenAllText(contents);
+  const idx = flat.findIndex(f => f.text?.toLowerCase().includes('sender:'));
   const next = flat[idx + 1];
   const normalized = next?.text?.trim().toLowerCase();
   const isKnown = config.testers.map(t => t.toLowerCase()).includes(normalized);
