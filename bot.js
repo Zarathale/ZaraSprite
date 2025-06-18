@@ -63,35 +63,40 @@ function setupMessageProbes(bot) {
 }
 
 // --- Recursive Whisper Parser ---
-function flattenExtras(node, list = []) {
-  if (!node) return list;
+function flattenDeepExtras(node, result = []) {
+  if (!node) return result;
+
   if (Array.isArray(node)) {
-    node.forEach(n => flattenExtras(n, list));
-  } else {
+    node.forEach(n => flattenDeepExtras(n, result));
+  } else if (typeof node === 'object') {
     if (typeof node.text === 'string') {
-      list.push({ text: node.text, color: node.color });
+      result.push({ text: node.text, color: node.color });
     }
     if (node.extra) {
-      flattenExtras(node.extra, list);
+      flattenDeepExtras(node.extra, result);
+    }
+    if (node.json && node.json.extra) {
+      flattenDeepExtras(node.json.extra, result);
     }
   }
-  return list;
+  return result;
 }
 
 function extractDeepWhisper(jsonMsg) {
   try {
-    const flat = flattenExtras(jsonMsg?.json?.extra);
-    const messageText = flat.map(e => e.text).join('').trim();
+    const flat = flattenDeepExtras(jsonMsg);
+    const joined = flat.map(f => f.text).join('').trim();
 
-    const senderPart = flat.find(e => e.color === 'gold');
-    const sender = senderPart?.text?.trim() || null;
+    const senderToken = flat.find(f => f.color === 'gold');
+    const msgToken = flat.find(f => f.color === 'light_purple' && f.text?.includes('test'));
 
-    if (sender && messageText.includes(sender)) {
-      const msg = messageText.split(sender).pop().replace(/^\W+/, '').trim();
-      return { sender, message: msg };
+    const sender = senderToken?.text?.trim() || null;
+    const message = msgToken?.text?.trim() || null;
+
+    if (sender && message) {
+      return { sender, message };
     }
-
-    return sender ? { sender, message: messageText } : null;
+    return null;
   } catch (err) {
     return null;
   }
