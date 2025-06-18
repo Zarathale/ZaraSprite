@@ -10,7 +10,7 @@ const config = {
   username: 'ZaraSprite',
   auth: 'microsoft',
   version: '1.20.4',
-  DEBUG_MODE: true,
+  DEBUG_MODE: false, // Turn off debug logs for clean output
   testers: ['Zarathale']
 };
 
@@ -56,6 +56,7 @@ function connectToServer(cfg) {
 
 // --- Message Debug Probe ---
 function setupMessageProbes(bot) {
+  if (!config.DEBUG_MODE) return;
   bot.on('message', (jsonMsg) => {
     logInfo("RawMessage", jsonMsg.toString());
     logDebug("ParsedMessage", jsonMsg);
@@ -105,19 +106,13 @@ function extractSender(jsonMsg) {
   const idx = flat.findIndex(f => f.text?.toLowerCase().includes('sender:'));
   if (idx !== -1) {
     const context = flat.slice(Math.max(0, idx - 2), idx + 8);
-    logDebug("SenderContext", context);
     const candidates = context.map(f => f.text?.trim().toLowerCase()).filter(Boolean);
-    logDebug("SenderScan", { from: idx, candidates });
     const match = candidates.find(c => config.testers.some(t => t.toLowerCase() === c));
     if (match) {
-      logDebug("SenderFound", match);
       return config.testers.find(t => t.toLowerCase() === match);
     }
-    // Fallback to immediate next fragment
     if (flat[idx + 1] && flat[idx + 1].text?.trim()) {
-      const raw = flat[idx + 1].text.trim();
-      logDebug("SenderFallback", raw);
-      return raw;
+      return flat[idx + 1].text.trim();
     }
   }
   return null;
@@ -127,13 +122,10 @@ function extractMessage(jsonMsg) {
   const flat = flattenAllText(jsonMsg);
   const lightPurples = flat.filter(f => f.color === 'light_purple' && f.text?.trim());
   if (lightPurples.length > 0) {
-    const msg = lightPurples[lightPurples.length - 1].text.trim();
-    logDebug("LightPurpleMsg", msg);
-    return msg;
+    return lightPurples[lightPurples.length - 1].text.trim();
   }
   const fallback = flat.find(f => f.text?.trim() && f.text.length > 10);
   if (fallback) {
-    logDebug("MsgFallback", fallback.text);
     return fallback.text.trim();
   }
   return null;
@@ -143,7 +135,6 @@ function extractDeepWhisper(jsonMsg) {
   try {
     const sender = extractSender(jsonMsg);
     const message = extractMessage(jsonMsg);
-    logDebug("WhisperParts", { sender, message });
     return { sender: sender || 'Unknown', message: message || null };
   } catch (err) {
     logError("WhisperParse", err.message);
@@ -157,9 +148,6 @@ function setupDirectMessageListener(bot) {
       const parsed = extractDeepWhisper(jsonMsg);
       if (parsed && parsed.message) {
         logInfo("DM", `From: ${parsed.sender} | Message: ${parsed.message}`);
-        logDebug("DM.full", jsonMsg);
-      } else {
-        logDebug("DM.skip", parsed);
       }
     } catch (err) {
       logError("DMListener", `Failed to parse whisper: ${err.message}`);
