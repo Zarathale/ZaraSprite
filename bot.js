@@ -8,6 +8,7 @@ const config = {
   host: 'mc.playtheatria.com',
   port: 25565,
   username: 'ZaraSprite',
+  auth: 'microsoft', // Use 'microsoft' for Microsoft accounts
   version: false,
   DEBUG_MODE: true,
   testers: ['Zarathale']
