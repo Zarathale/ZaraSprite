@@ -63,36 +63,36 @@ function setupMessageProbes(bot) {
 }
 
 // --- Recursive Flattening Utility ---
-function flattenAllText(node, result = [], inheritedColor = null) {
+function flattenAllText(node, result = [], inheritedColor = null, path = 'root') {
   if (!node) return result;
   if (typeof node === 'string') {
-    result.push({ text: node.trim(), color: inheritedColor });
+    result.push({ text: node.trim(), color: inheritedColor, path });
     return result;
   }
   if (Array.isArray(node)) {
-    node.forEach(n => flattenAllText(n, result, inheritedColor));
+    node.forEach((n, i) => flattenAllText(n, result, inheritedColor, `${path}[${i}]`));
     return result;
   }
   if (typeof node === 'object') {
     const color = node.color || inheritedColor;
     if (typeof node.text === 'string' && node.text.trim()) {
-      result.push({ text: node.text.trim(), color });
+      result.push({ text: node.text.trim(), color, path });
     }
     if (node?.toString?.name === 'ChatMessage') {
-      flattenAllText(node.json, result, color);
+      flattenAllText(node.json, result, color, `${path}.json`);
     }
     if (node.json && typeof node.json === 'object') {
-      flattenAllText(node.json, result, color);
+      flattenAllText(node.json, result, color, `${path}.json`);
     }
     if (Array.isArray(node.extra)) {
-      flattenAllText(node.extra, result, color);
+      flattenAllText(node.extra, result, color, `${path}.extra`);
     }
     if (node.hoverEvent?.contents) {
-      flattenAllText(node.hoverEvent.contents, result, color);
+      flattenAllText(node.hoverEvent.contents, result, color, `${path}.hoverEvent.contents`);
     }
-    Object.values(node).forEach(value => {
+    Object.entries(node).forEach(([key, value]) => {
       if (typeof value === 'object' || Array.isArray(value)) {
-        flattenAllText(value, result, color);
+        flattenAllText(value, result, color, `${path}.${key}`);
       }
     });
     return result;
