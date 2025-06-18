@@ -19,141 +19,96 @@ function logInfo(label, message) {
   console.log(`[${new Date().toISOString()}] [INFO] [${label}] ${message}`);
 }
 
-function logError(label, error) {
-  console.error(`[${new Date().toISOString()}] [ERROR] [${label}]`, error);
+function logError(label, message) {
+  console.error(`[${new Date().toISOString()}] [ERROR] [${label}] ${message}`);
 }
 
-function logDebug(label, data) {
+function logDebug(label, obj) {
   if (config.DEBUG_MODE) {
-    console.log(`[${new Date().toISOString()}] [DEBUG] [${label}]`);
-    console.dir(data, { depth: null });
+    console.dir({ [label]: obj }, { depth: null });
   }
 }
 
-// --- Message Probes ---
-function setupMessageProbes(bot) {
-  // Basic Chat
-  bot.on('chat', (username, message) => {
-    logInfo("chat", `From: ${username} | ${message}`);
-  });
-
-  // Whisper DM
-  bot.on('whisper', (username, message, rawMessage) => {
-    logInfo("whisper", `From: ${username} | ${message}`);
-    logDebug("whisper.raw", rawMessage);
-  });
-
-  // General Message JSON (may include system/DM)
-  bot.on('message', (jsonMsg, position, sender) => {
-    logInfo("message", `Pos: ${position} | From: ${sender?.username || 'N/A'}`);
-    logDebug("message.raw", jsonMsg);
-  });
-
-  // System Chat
-  bot._client.on('system_chat', (packet) => {
-    logInfo("system_chat", `Packet type: system_chat`);
-    logDebug("system_chat.packet", packet);
-  });
-
-  // Generic packet hook (for deep digging)
-  bot._client.on('packet', (data, meta) => {
-    if (meta.name === 'chat' || meta.name === 'system_chat' || meta.name === 'player_chat') {
-      logInfo("packet", `Incoming packet: ${meta.name}`);
-      logDebug("packet.data", data);
-    }
-  });
-
-  // Raw incoming text as fallback
-  bot.on('messagestr', (message) => {
-    logInfo("messagestr", `Raw text: ${message}`);
-  });
-}
-
-
-// --- Connection Logic ---
-function connectToServer(config) {
+// --- Connection ---
+function connectToServer(cfg) {
   try {
-    logInfo("Startup", `Connecting as ${config.username} to ${config.host}:${config.port}...`);
-    const bot = mineflayer.createBot(config);
+    logInfo("Startup", `Connecting as ${cfg.username} to ${cfg.host}:${cfg.port}...`);
+    const bot = mineflayer.createBot(cfg);
 
     bot.once('login', () => {
       logInfo("Connection", `Successfully logged in as ${bot.username}`);
-    });
-
-    bot.on('error', (err) => {
-      logError("Connection", `Error: ${err.message}`);
     });
 
     bot.on('end', () => {
       logInfo("Connection", `Bot has disconnected.`);
     });
 
+    bot.on('error', (err) => {
+      logError("Connection", err.message);
+    });
+
     return bot;
   } catch (err) {
-    logError("Connection", err);
+    logError("Connection", err.message);
+    return null;
   }
 }
 
-// --- DM Listener Logic ---
+// --- Message Debug Probe ---
+function setupMessageProbes(bot) {
+  bot.on('message', (jsonMsg) => {
+    logInfo("RawMessage", jsonMsg.toString());
+    logDebug("ParsedMessage", jsonMsg);
+  });
+}
+
+// --- DM Listener ---
 function setupDirectMessageListener(bot) {
   bot.on('message', (jsonMsg) => {
     try {
-      logDebug("DM.raw", jsonMsg);
+      const base = jsonMsg.json;
+      if (!base || !Array.isArray(base.extra)) return;
 
-      const parts = jsonMsg?.extra || [];
-      const fullText = parts.map(p => p.text).join('');
+      const firstPart = base.extra[0];
+      if (!firstPart?.text) return;
 
-      // Quick heuristic check
-      if (fullText.includes("whispers to you:") && parts.length >= 3) {
-        const sender = parts[0]?.text || '???';
-        const message = parts.slice(2).map(p => p.text).join(''); // Remaining parts after " whispers to you: "
+      const sender = firstPart.text.replace(/[: ]+$/, '');
+      const remainingParts = base.extra.slice(1).map(p => p.text).join('').trim();
 
-        logInfo("DM", `Sender: ${sender}`);
-        logInfo("DM", `Message: ${message}`);
-        logInfo("DM", `Raw Text: ${fullText}`);
-      }
+      if (!remainingParts) return;
+
+      logInfo("DM", `From: ${sender} | Message: ${remainingParts}`);
     } catch (err) {
-      logError("DM", `Exception in DM handler: ${err}`);
+      logError("DMListener", `Failed to parse whisper: ${err.message}`);
     }
   });
 }
 
-
-
-// --- Safe Command Parser ---
-function isValidCommand(cmd) {
-  // Block semicolons, pipes, newlines, and escape characters
-  return !/[;\n\r|\\]/.test(cmd);
-}
-
-// --- Command Listener Logic ---
+// --- Command Listener ---
 function setupCommandListener(bot) {
-  const COMMAND_PREFIX_REGEX = /^ZaraSprite\s+\/(.+)/;
-
-  bot.on('chat', (username, message) => {
+  bot.on('message', (jsonMsg) => {
     try {
-      if (!config.testers.includes(username)) return;
+      const base = jsonMsg.json;
+      if (!base || !Array.isArray(base.extra)) return;
 
-      const match = message.match(COMMAND_PREFIX_REGEX);
+      const firstPart = base.extra[0];
+      if (!firstPart?.text || !config.testers.includes(firstPart.text.trim())) return;
+
+      const text = base.extra.map(p => p.text).join('').trim();
+      const match = text.match(/^ZaraSprite \/(.+)/);
+
       if (match) {
-        const fullCommand = match[1];
-
-        if (!isValidCommand(fullCommand)) {
-          logError("CommandParser", `Blocked potentially unsafe command: ${fullCommand}`);
-          return;
-        }
-
-        logInfo("CommandParser", `Received command from ${username}: /${fullCommand}`);
-        bot.chat(`/${fullCommand}`);
-        logInfo("CommandExec", `Executed: /${fullCommand}`);
+        const command = match[1];
+        logInfo("CommandExec", `Executing: /${command}`);
+        bot.chat(`/${command}`);
       }
     } catch (err) {
-      logError("CommandExec", err);
+      logError("CommandListener", `Failed to parse command: ${err.message}`);
     }
   });
 }
 
-// --- Main Entrypoint ---
+// --- Entrypoint ---
 function main() {
   const bot = connectToServer(config);
   if (!bot) {
@@ -161,10 +116,7 @@ function main() {
     return;
   }
 
-  // Setup message probes
   setupMessageProbes(bot);
-
-  // Functional liseteners
   setupDirectMessageListener(bot);
   setupCommandListener(bot);
 }
