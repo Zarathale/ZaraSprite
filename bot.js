@@ -98,32 +98,26 @@ function connectToServer(config) {
 function setupDirectMessageListener(bot) {
   bot.on('message', (jsonMsg) => {
     try {
-      // Log the full raw message object for debug inspection
       logDebug("DM.raw", jsonMsg);
 
-      // Extract readable message text from JSON
-      const text = jsonMsg?.extra?.map(e => e.text).join('') || '';
+      const parts = jsonMsg?.extra || [];
+      const fullText = parts.map(p => p.text).join('');
 
-      // Check for Theatria-style whisper format
-      if (text.includes("whispers to you:")) {
-        const match = text.match(/^(\w+)\swhispers to you:\s(.+)$/);
+      // Quick heuristic check
+      if (fullText.includes("whispers to you:") && parts.length >= 3) {
+        const sender = parts[0]?.text || '???';
+        const message = parts.slice(2).map(p => p.text).join(''); // Remaining parts after " whispers to you: "
 
-        if (match) {
-          const sender = match[1];
-          const message = match[2];
-
-          logInfo("DM", `Sender: ${sender}`);
-          logInfo("DM", `Message: ${message}`);
-          logInfo("DM", `Raw Text: ${text}`);
-        } else {
-          logWarn("DM", `Whisper message did not match expected format: ${text}`);
-        }
+        logInfo("DM", `Sender: ${sender}`);
+        logInfo("DM", `Message: ${message}`);
+        logInfo("DM", `Raw Text: ${fullText}`);
       }
     } catch (err) {
       logError("DM", `Exception in DM handler: ${err}`);
     }
   });
 }
+
 
 
 // --- Safe Command Parser ---
