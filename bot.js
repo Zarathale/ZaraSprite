@@ -81,7 +81,10 @@ function flattenAllText(node, result = [], inheritedColor = null) {
       result.push({ text: node.text, color });
     }
 
-    // Recursively dive into known fields
+    if (node?.toString?.name === 'ChatMessage') {
+      flattenAllText(node.json, result, color);
+    }
+
     ['extra', 'json', 'with', 'contents'].forEach(key => {
       if (node[key]) flattenAllText(node[key], result, color);
     });
@@ -99,13 +102,14 @@ function extractDeepWhisper(jsonMsg) {
     // Try normal sender detection
     let sender = flat.find(f => f.color === 'gold')?.text?.trim();
 
-    // Fallback: search hover metadata
+    // Fallback: search hover metadata if sender not found
     if (!sender && jsonMsg.hoverEvent?.contents?.extra) {
       const hoverFlat = flattenAllText(jsonMsg.hoverEvent.contents.extra);
       const match = hoverFlat.find(f => f.text?.includes('Sender:'));
       const next = hoverFlat[hoverFlat.indexOf(match) + 1];
       if (next && config.testers.includes(next.text?.trim())) {
         sender = next.text.trim();
+        logDebug("SenderFallback", { sender });
       }
     }
 
@@ -114,6 +118,10 @@ function extractDeepWhisper(jsonMsg) {
       ? allPurples[allPurples.length - 1].text
       : flat.find(f => f.text?.trim() && f.text.length > 10)?.text
     )?.trim();
+
+    if (!message) {
+      logDebug("MessageFallback", flat);
+    }
 
     return sender && message ? { sender, message } : null;
   } catch (err) {
