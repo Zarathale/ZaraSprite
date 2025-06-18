@@ -104,7 +104,9 @@ function extractSender(jsonMsg) {
   const flat = flattenAllText(jsonMsg);
   const idx = flat.findIndex(f => f.text?.toLowerCase().includes('sender:'));
   if (idx !== -1) {
-    const candidates = flat.slice(idx + 1, idx + 8).map(f => f.text?.trim().toLowerCase()).filter(Boolean);
+    const context = flat.slice(Math.max(0, idx - 2), idx + 8);
+    logDebug("SenderContext", context);
+    const candidates = context.map(f => f.text?.trim().toLowerCase()).filter(Boolean);
     logDebug("SenderScan", { from: idx, candidates });
     const match = candidates.find(c => config.testers.some(t => t.toLowerCase() === c));
     if (match) {
