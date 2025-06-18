@@ -62,10 +62,9 @@ function setupMessageProbes(bot) {
   });
 }
 
-// --- Deep Flattener ---
+// --- Deep Flatten and Hybrid Sender/Message Extractor ---
 function flattenAllText(node, result = [], inheritedColor = null) {
   if (!node) return result;
-
   if (typeof node === 'string') {
     result.push({ text: node, color: inheritedColor });
     return result;
@@ -77,26 +76,15 @@ function flattenAllText(node, result = [], inheritedColor = null) {
   }
 
   if (typeof node === 'object') {
-    // Unwrap ChatMessage or MessageBuilder types
-    if (node.json) flattenAllText(node.json, result, inheritedColor);
-    if (node.with) flattenAllText(node.with, result, inheritedColor);
-    if (node.contents) flattenAllText(node.contents, result, inheritedColor);
-
     const color = node.color || inheritedColor;
-
     if (typeof node.text === 'string') {
       result.push({ text: node.text, color });
     }
 
-    if (Array.isArray(node.extra)) {
-      node.extra.forEach(child => {
-        if (typeof child === 'string') {
-          result.push({ text: child, color });
-        } else {
-          flattenAllText(child, result, color);
-        }
-      });
-    }
+    // Recursively dive into known fields
+    ['extra', 'json', 'with', 'contents'].forEach(key => {
+      if (node[key]) flattenAllText(node[key], result, color);
+    });
 
     return result;
   }
@@ -108,8 +96,18 @@ function extractDeepWhisper(jsonMsg) {
   try {
     const flat = flattenAllText(jsonMsg);
 
-    const sender = flat.find(f => f.color === 'gold')?.text?.trim()
-      || flat.find(f => f.text?.includes('Zarathale'))?.text?.trim();
+    // Try normal sender detection
+    let sender = flat.find(f => f.color === 'gold')?.text?.trim();
+
+    // Fallback: search hover metadata
+    if (!sender && jsonMsg.hoverEvent?.contents?.extra) {
+      const hoverFlat = flattenAllText(jsonMsg.hoverEvent.contents.extra);
+      const match = hoverFlat.find(f => f.text?.includes('Sender:'));
+      const next = hoverFlat[hoverFlat.indexOf(match) + 1];
+      if (next && config.testers.includes(next.text?.trim())) {
+        sender = next.text.trim();
+      }
+    }
 
     const allPurples = flat.filter(f => f.color === 'light_purple' && f.text?.trim());
     const message = (allPurples.length > 0
@@ -117,10 +115,7 @@ function extractDeepWhisper(jsonMsg) {
       : flat.find(f => f.text?.trim() && f.text.length > 10)?.text
     )?.trim();
 
-    if (sender && message) {
-      return { sender, message };
-    }
-    return null;
+    return sender && message ? { sender, message } : null;
   } catch (err) {
     return null;
   }
