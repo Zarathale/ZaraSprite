@@ -1,5 +1,5 @@
 // == ZaraSprite: bot.js ==
-// DM parsing using PM signature pattern + fallback logging
+// DM parsing using raw packet listener for reliable sender extraction
 
 const mineflayer = require('mineflayer');
 
@@ -39,28 +39,66 @@ function connectToServer(cfg) {
   }
 }
 
-// --- Listeners ---
-function setupDirectMessageListener(bot) {
-  bot.on('message', (jsonMsg) => {
+// --- Message Flattening ---
+function flattenAllText(node, result = [], inheritedColor = null, path = 'root') {
+  if (!node) return result;
+  if (typeof node === 'string') {
+    result.push({ text: node.trim(), color: inheritedColor, path });
+    return result;
+  }
+  if (Array.isArray(node)) {
+    node.forEach((n, i) => flattenAllText(n, result, inheritedColor, `${path}[${i}]`));
+    return result;
+  }
+  if (typeof node === 'object') {
+    const color = node.color || inheritedColor;
+    if (typeof node.text === 'string' && node.text.trim()) {
+      result.push({ text: node.text.trim(), color, path });
+    }
+    if (node?.toString?.name === 'ChatMessage') {
+      flattenAllText(node.json, result, color, `${path}.json`);
+    }
+    if (node.json && typeof node.json === 'object') {
+      flattenAllText(node.json, result, color, `${path}.json`);
+    }
+    if (Array.isArray(node.extra)) {
+      flattenAllText(node.extra, result, color, `${path}.extra`);
+    }
+    if (node.hoverEvent?.contents) {
+      flattenAllText(node.hoverEvent.contents, result, color, `${path}.hoverEvent.contents`);
+    }
+    Object.entries(node).forEach(([key, value]) => {
+      if (typeof value === 'object' || Array.isArray(value)) {
+        flattenAllText(value, result, color, `${path}.${key}`);
+      }
+    });
+    return result;
+  }
+  return result;
+}
+
+function setupRawPacketListener(bot) {
+  bot._client.on('chat', (packet) => {
     try {
-      const base = jsonMsg.json;
-      const plain = jsonMsg.toString();
+      const msg = JSON.parse(packet.message);
+      const flat = flattenAllText(msg);
 
-      if (!plain.includes('[PM] [')) return;
+      const isWhisper = flat.some(f => f.text === 'PM');
+      if (!isWhisper) return;
 
-      logInfo("DM-Raw", plain);
+      const arrowIdx = flat.findIndex(f => f.text === ' -> ');
+      const sender = arrowIdx > 0 ? flat[arrowIdx - 1]?.text : null;
+      const receiver = arrowIdx > 0 ? flat[arrowIdx + 1]?.text : null;
 
-      const whisper = /^\[PM\] \[([^\]]+?) -> ([^\]]+?)\] (.+)$/;
-      const match = plain.match(whisper);
-      if (match) {
-        const [, sender, receiver, bodyRaw] = match;
-        const body = bodyRaw.replace(/\sflp[ms]_[0-9a-f\-]+\s*/g, '').trim();
-        logInfo("DM-Match", `From: ${sender} → ${receiver} | ${body}`);
-      } else {
-        logInfo("DM-Skip", "Message matched PM filter but regex failed.");
+      const messageParts = flat.slice(arrowIdx + 2).filter(f => f.color === 'light_purple');
+      let body = messageParts.map(p => p.text).join(' ').trim();
+      body = body.replace(/\sflp[ms]_[0-9a-f\-]+\s*/g, '');
+
+      if (sender && receiver && body) {
+        logInfo("DM-RawClient", `From: ${sender} → ${receiver} | ${body}`);
       }
     } catch (err) {
-      logError("DM-Parse", err.message);
+      logError("RawPacket", err.message);
     }
   });
 }
@@ -81,7 +119,7 @@ function main() {
     return;
   }
   setupMessageProbes(bot);
-  setupDirectMessageListener(bot);
+  setupRawPacketListener(bot);
 }
 
 main();
