@@ -141,9 +141,7 @@ function extractDeepWhisper(jsonMsg) {
     const sender = extractSender(jsonMsg);
     const message = extractMessage(jsonMsg);
     logDebug("WhisperParts", { sender, message });
-    if (sender && message) return { sender, message };
-    if (message) return { sender: 'Unknown', message }; // partial fallback
-    return null;
+    return { sender: sender || 'Unknown', message: message || null };
   } catch (err) {
     logError("WhisperParse", err.message);
     return null;
@@ -154,9 +152,11 @@ function setupDirectMessageListener(bot) {
   bot.on('message', (jsonMsg) => {
     try {
       const parsed = extractDeepWhisper(jsonMsg);
-      if (parsed) {
+      if (parsed && parsed.message) {
         logInfo("DM", `From: ${parsed.sender} | Message: ${parsed.message}`);
         logDebug("DM.full", jsonMsg);
+      } else {
+        logDebug("DM.skip", parsed);
       }
     } catch (err) {
       logError("DMListener", `Failed to parse whisper: ${err.message}`);
