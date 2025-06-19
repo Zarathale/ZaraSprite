@@ -1,5 +1,5 @@
 // == ZaraSprite: bot.js ==
-// Clean DM parsing using message event and PM pattern matching
+// Final tested method using .json.extra directly and PM block traversal
 
 const mineflayer = require('mineflayer');
 
@@ -10,7 +10,7 @@ const config = {
   username: 'ZaraSprite',
   auth: 'microsoft',
   version: '1.20.4',
-  DEBUG_MODE: false
+  DEBUG_MODE: true
 };
 
 // --- Logging ---
@@ -24,17 +24,30 @@ function logDebug(label, obj) {
   if (config.DEBUG_MODE) console.dir({ [label]: obj }, { depth: null });
 }
 
-// --- DM Parsing ---
-function parsePMFromJSON(jsonMsg) {
-  const raw = jsonMsg?.toString?.();
-  const pmRegex = /^\[PM\] \[([^\]]+?) -> ([^\]]+?)\] (.+)$/;
-  const match = raw?.match(pmRegex);
-  if (match) {
-    const [, sender, receiver, message] = match;
-    const cleanMessage = message.replace(/\sflp[ms]_[0-9a-f-]+\s*/g, '').trim();
-    return { sender, receiver, message: cleanMessage };
+// --- Message Parsing ---
+function extractPM(jsonMsg) {
+  try {
+    const extra = jsonMsg?.json?.extra;
+    if (!Array.isArray(extra)) return null;
+
+    // Must start with [PM
+    if (!(extra[0]?.text === '[' && extra[1]?.text === 'PM')) return null;
+
+    const arrowIdx = extra.findIndex(e => e.text === '->');
+    if (arrowIdx < 2 || !extra[arrowIdx - 1] || !extra[arrowIdx + 1]) return null;
+
+    const sender = extra[arrowIdx - 1].text.trim();
+    const receiver = extra[arrowIdx + 1].text.trim();
+
+    // Message body starts after the first closing bracket
+    const closeIdx = extra.findIndex((e, i) => i > arrowIdx && e.text === ']');
+    const messageParts = extra.slice(closeIdx + 1).map(e => e.text).join(' ').replace(/\sflp[ms]_[0-9a-f-]+\s*/g, '').trim();
+
+    return { sender, receiver, body: messageParts };
+  } catch (err) {
+    logError("PMExtract", err.message);
+    return null;
   }
-  return null;
 }
 
 // --- Connect ---
@@ -48,11 +61,11 @@ function connectToServer(cfg) {
     bot.on('error', (err) => logError("Connection", err.message));
 
     bot.on('message', (jsonMsg) => {
-      const parsed = parsePMFromJSON(jsonMsg);
+      const parsed = extractPM(jsonMsg);
       if (parsed) {
-        logInfo("DM", `From: ${parsed.sender} → ${parsed.receiver} | ${parsed.message}`);
+        logInfo("DM", `From: ${parsed.sender} → ${parsed.receiver} | ${parsed.body}`);
       } else if (config.DEBUG_MODE) {
-        logDebug("ChatMessage", jsonMsg);
+        logDebug("UnparsedMsg", jsonMsg);
       }
     });
 
