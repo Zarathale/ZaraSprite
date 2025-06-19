@@ -10,7 +10,7 @@ const config = {
   username: 'ZaraSprite',
   auth: 'microsoft',
   version: '1.20.4',
-  DEBUG_MODE: false
+  DEBUG_MODE: true // temporarily enable debug
 };
 
 // --- Logging ---
@@ -65,7 +65,10 @@ function flatten(msgNode, depth = 0, arr = [], visited = new WeakSet()) {
 
 function parsePrivateMessage(jsonMsg) {
   try {
-    const flat = flatten(jsonMsg);
+    const base = jsonMsg.json;
+    if (!base || !Array.isArray(base.extra)) return null;
+
+    const flat = flatten(base);
     const arrowIdx = flat.findIndex(e => e.text === '->');
     const pmIdx = flat.findIndex(e => e.text === 'PM');
     if (pmIdx === -1 || arrowIdx < 2) return null;
@@ -96,6 +99,7 @@ function parsePrivateMessage(jsonMsg) {
 // --- Listeners ---
 function setupMessageListener(bot) {
   bot.on('message', (jsonMsg) => {
+    logDebug("Incoming JSONMsg", jsonMsg);
     const parsed = parsePrivateMessage(jsonMsg);
     if (parsed) {
       logInfo("DM", `From: ${parsed.sender} → ${parsed.receiver} | ${parsed.body}`);
