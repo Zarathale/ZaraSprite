@@ -1,5 +1,5 @@
 // == ZaraSprite: bot.js ==
-// Final tested method using .json.extra directly and PM block traversal
+// Final tested method using .json.extra directly and PM block traversal with built-in Microsoft Auth
 
 const mineflayer = require('mineflayer');
 
