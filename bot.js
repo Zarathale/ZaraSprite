@@ -1,5 +1,5 @@
 // == ZaraSprite: bot.js ==
-// Clean DM parsing with reliable deep traversal and message fragment exclusion
+// Clean DM parsing using whisper event and fallback strategies
 
 const mineflayer = require('mineflayer');
 
@@ -32,11 +32,23 @@ function connectToServer(cfg) {
     bot.once('login', () => logInfo("Connection", `Successfully logged in as ${bot.username}`));
     bot.on('end', () => logInfo("Connection", `Bot has disconnected.`));
     bot.on('error', (err) => logError("Connection", err.message));
+
+    // --- Whisper handler ---
+    bot.on('whisper', (username, message, rawMessage) => {
+      console.log(`⬅️ Whisper from ${username}: ${message}`);
+      handleDirectMessage(username, message);
+    });
+
     return bot;
   } catch (err) {
     logError("Connection", err.message);
     return null;
   }
+}
+
+// --- DM Handling ---
+function handleDirectMessage(sender, body) {
+  logInfo("DM", `From: ${sender} → ${config.username} | ${body}`);
 }
 
 // --- Deep Chat Traversal ---
@@ -65,8 +77,8 @@ function flatten(msgNode, depth = 0, arr = [], visited = new WeakSet()) {
 
 function parsePrivateMessage(jsonMsg) {
   try {
-    const base = jsonMsg.json;
-    if (!base || !Array.isArray(base.extra)) return null;
+    const base = jsonMsg.json || jsonMsg; // fallback if .json doesn't exist
+    if (!base || typeof base !== 'object') return null;
 
     const flat = flatten(base);
     const arrowIdx = flat.findIndex(e => e.text === '->');
