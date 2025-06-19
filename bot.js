@@ -1,5 +1,5 @@
 // == ZaraSprite: bot.js ==
-// Clean DM parsing with final trimming pass and message fragment exclusion
+// Clean DM parsing with reliable deep traversal and message fragment exclusion
 
 const mineflayer = require('mineflayer');
 
@@ -43,15 +43,23 @@ function connectToServer(cfg) {
 function flatten(msgNode, depth = 0, arr = [], visited = new WeakSet()) {
   if (!msgNode || typeof msgNode !== 'object' || visited.has(msgNode)) return arr;
   visited.add(msgNode);
+
   if (typeof msgNode.text === 'string' && msgNode.text.trim()) {
     arr.push({ text: msgNode.text.trim(), color: msgNode.color, depth });
   }
-  if (msgNode[''] && typeof msgNode[''] === 'string') {
-    arr.push({ text: msgNode[''].trim(), color: msgNode.color, depth });
+
+  if (msgNode.hoverEvent?.contents) {
+    flatten(msgNode.hoverEvent.contents, depth + 1, arr, visited);
   }
+
   if (Array.isArray(msgNode.extra)) {
     msgNode.extra.forEach(e => flatten(e, depth + 1, arr, visited));
   }
+
+  if (msgNode.json && typeof msgNode.json === 'object') {
+    flatten(msgNode.json, depth + 1, arr, visited);
+  }
+
   return arr;
 }
 
