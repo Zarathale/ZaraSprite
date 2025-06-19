@@ -1,5 +1,5 @@
 // == ZaraSprite: bot.js ==
-// Clean DM parsing using whisper event and fallback strategies
+// Clean DM parsing using whisper event only
 
 const mineflayer = require('mineflayer');
 
@@ -10,7 +10,7 @@ const config = {
   username: 'ZaraSprite',
   auth: 'microsoft',
   version: '1.20.4',
-  DEBUG_MODE: true // temporarily enable debug
+  DEBUG_MODE: false
 };
 
 // --- Logging ---
@@ -19,9 +19,6 @@ function logInfo(label, message) {
 }
 function logError(label, message) {
   console.error(`[${new Date().toISOString()}] [ERROR] [${label}] ${message}`);
-}
-function logDebug(label, obj) {
-  if (config.DEBUG_MODE) console.dir({ [label]: obj }, { depth: null });
 }
 
 // --- Connect ---
@@ -35,8 +32,7 @@ function connectToServer(cfg) {
 
     // --- Whisper handler ---
     bot.on('whisper', (username, message, rawMessage) => {
-      console.log(`⬅️ Whisper from ${username}: ${message}`);
-      handleDirectMessage(username, message);
+      logInfo("DM", `From: ${username} → ${cfg.username} | ${message}`);
     });
 
     return bot;
@@ -46,87 +42,6 @@ function connectToServer(cfg) {
   }
 }
 
-// --- DM Handling ---
-function handleDirectMessage(sender, body) {
-  logInfo("DM", `From: ${sender} → ${config.username} | ${body}`);
-}
-
-// --- Deep Chat Traversal ---
-function flatten(msgNode, depth = 0, arr = [], visited = new WeakSet()) {
-  if (!msgNode || typeof msgNode !== 'object' || visited.has(msgNode)) return arr;
-  visited.add(msgNode);
-
-  if (typeof msgNode.text === 'string' && msgNode.text.trim()) {
-    arr.push({ text: msgNode.text.trim(), color: msgNode.color, depth });
-  }
-
-  if (msgNode.hoverEvent?.contents) {
-    flatten(msgNode.hoverEvent.contents, depth + 1, arr, visited);
-  }
-
-  if (Array.isArray(msgNode.extra)) {
-    msgNode.extra.forEach(e => flatten(e, depth + 1, arr, visited));
-  }
-
-  if (msgNode.json && typeof msgNode.json === 'object') {
-    flatten(msgNode.json, depth + 1, arr, visited);
-  }
-
-  return arr;
-}
-
-function parsePrivateMessage(jsonMsg) {
-  try {
-    const base = jsonMsg.json || jsonMsg; // fallback if .json doesn't exist
-    if (!base || typeof base !== 'object') return null;
-
-    const flat = flatten(base);
-    const arrowIdx = flat.findIndex(e => e.text === '->');
-    const pmIdx = flat.findIndex(e => e.text === 'PM');
-    if (pmIdx === -1 || arrowIdx < 2) return null;
-
-    const sender = flat[arrowIdx - 1]?.text?.trim() || 'Unknown';
-    const receiver = flat[arrowIdx + 1]?.text?.trim() || 'ZaraSprite';
-
-    const closingIdx = flat.findIndex((e, idx) => idx > arrowIdx && e.text === ']');
-    const messageParts = flat.slice(closingIdx + 1)
-      .map(e => e.text)
-      .filter(Boolean)
-      .join(' ')
-      .replace(/\sflp[ms]_[0-9a-f\-]+\s*/g, '')
-      .replace(/\[[^\]]*?->\s*?[^\]]*?\]/g, '')
-      .replace(/\]+/g, '')
-      .replace(/\s+/g, ' ')
-      .trim();
-
-    if (!messageParts) return null;
-
-    return { sender, receiver, body: messageParts };
-  } catch (err) {
-    logError("Parse", err.message);
-    return null;
-  }
-}
-
-// --- Listeners ---
-function setupMessageListener(bot) {
-  bot.on('message', (jsonMsg) => {
-    logDebug("Incoming JSONMsg", jsonMsg);
-    const parsed = parsePrivateMessage(jsonMsg);
-    if (parsed) {
-      logInfo("DM", `From: ${parsed.sender} → ${parsed.receiver} | ${parsed.body}`);
-    }
-  });
-}
-
-function setupMessageProbes(bot) {
-  if (!config.DEBUG_MODE) return;
-  bot.on('message', (jsonMsg) => {
-    logInfo("RawMessage", jsonMsg.toString());
-    logDebug("ParsedMessage", jsonMsg);
-  });
-}
-
 // --- Entrypoint ---
 function main() {
   const bot = connectToServer(config);
@@ -134,8 +49,6 @@ function main() {
     logError("Main", "Bot creation failed.");
     return;
   }
-  setupMessageProbes(bot);
-  setupMessageListener(bot);
 }
 
 main();
